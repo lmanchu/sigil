@@ -13,9 +13,17 @@ pub enum InputMode {
     Command,
 }
 
+/// A channel the user has joined
+#[derive(Debug, Clone)]
+pub struct JoinedChannel {
+    pub id: String,    // hex event ID
+    pub name: String,
+}
+
 pub struct App {
     pub contacts: ContactBook,
     pub history: ChatHistory,
+    pub channels: Vec<JoinedChannel>,
     pub input: String,
     pub input_mode: InputMode,
     pub selected_contact: usize,
@@ -31,6 +39,7 @@ impl App {
         Self {
             contacts,
             history: ChatHistory::default(),
+            channels: vec![],
             input: String::new(),
             input_mode: InputMode::Normal,
             selected_contact: 0,
@@ -41,27 +50,51 @@ impl App {
         }
     }
 
-    pub fn selected_peer_npub(&self) -> Option<String> {
-        // Merge contact book npubs with active conversation npubs
+    /// Get the selected peer key — either "npub..." for DMs or "ch:hexid" for channels
+    pub fn selected_peer_key(&self) -> Option<String> {
         let peers = self.peer_list();
         peers.get(self.selected_contact).cloned()
     }
 
-    /// Combined peer list: contacts + any unknown senders
+    #[allow(dead_code)]
+    pub fn selected_is_channel(&self) -> bool {
+        self.selected_peer_key()
+            .map(|k| k.starts_with("ch:"))
+            .unwrap_or(false)
+    }
+
+    /// Combined peer list: channels + contacts + unknown senders
+    /// Channels prefixed with "ch:" to distinguish from npubs
     pub fn peer_list(&self) -> Vec<String> {
-        let mut peers: Vec<String> = self
-            .contacts
-            .contacts
-            .iter()
-            .map(|c| c.npub.clone())
-            .collect();
-        // Add active conversation partners not in contacts
+        let mut peers: Vec<String> = vec![];
+        // Channels first
+        for ch in &self.channels {
+            peers.push(format!("ch:{}", ch.id));
+        }
+        // Then contacts
+        for c in &self.contacts.contacts {
+            peers.push(c.npub.clone());
+        }
+        // Then active conversation partners not in contacts
         for npub in self.history.active_peers() {
             if !peers.contains(&npub) {
                 peers.push(npub);
             }
         }
         peers
+    }
+
+    /// Get display name for a peer key
+    pub fn peer_display_name(&self, key: &str) -> String {
+        if let Some(ch_id) = key.strip_prefix("ch:") {
+            self.channels
+                .iter()
+                .find(|c| c.id == ch_id)
+                .map(|c| c.name.clone())
+                .unwrap_or_else(|| format!("#{}...", &ch_id[..8.min(ch_id.len())]))
+        } else {
+            self.contacts.display_name(key)
+        }
     }
 }
 
@@ -91,17 +124,24 @@ fn draw_contacts(frame: &mut Frame, app: &App, area: Rect) {
     let items: Vec<ListItem> = peers
         .iter()
         .enumerate()
-        .map(|(i, npub)| {
-            let name = app.contacts.display_name(npub);
-            let is_agent = app
-                .contacts
-                .find(npub)
-                .map(|c| c.is_agent)
-                .unwrap_or(false);
-            let prefix = if is_agent { "⚙ " } else { "  " };
+        .map(|(i, key)| {
+            let is_channel = key.starts_with("ch:");
+            let name = app.peer_display_name(key);
+            let is_agent = if !is_channel {
+                app.contacts.find(key).map(|c| c.is_agent).unwrap_or(false)
+            } else {
+                false
+            };
+            let prefix = if is_channel {
+                "# "
+            } else if is_agent {
+                "⚙ "
+            } else {
+                "  "
+            };
             let unread = app
                 .history
-                .get_messages(npub)
+                .get_messages(key)
                 .last()
                 .map(|e| !e.from_me)
                 .unwrap_or(false);
@@ -110,6 +150,8 @@ fn draw_contacts(frame: &mut Frame, app: &App, area: Rect) {
                     .bg(Color::DarkGray)
                     .fg(Color::White)
                     .add_modifier(Modifier::BOLD)
+            } else if is_channel {
+                Style::default().fg(Color::Magenta)
             } else if unread {
                 Style::default().fg(Color::Yellow)
             } else {
@@ -130,27 +172,27 @@ fn draw_contacts(frame: &mut Frame, app: &App, area: Rect) {
 }
 
 fn draw_chat(frame: &mut Frame, app: &App, area: Rect) {
-    let peer_npub = app.selected_peer_npub();
-    let title = match &peer_npub {
-        Some(npub) => {
-            let name = app.contacts.display_name(npub);
-            let is_agent = app
-                .contacts
-                .find(npub)
-                .map(|c| c.is_agent)
-                .unwrap_or(false);
-            if is_agent {
-                format!(" ⚙ {} ", name)
+    let peer_key = app.selected_peer_key();
+    let title = match &peer_key {
+        Some(key) => {
+            let name = app.peer_display_name(key);
+            if key.starts_with("ch:") {
+                format!(" # {} ", name)
             } else {
-                format!(" {} ", name)
+                let is_agent = app.contacts.find(key).map(|c| c.is_agent).unwrap_or(false);
+                if is_agent {
+                    format!(" ⚙ {} ", name)
+                } else {
+                    format!(" {} ", name)
+                }
             }
         }
         None => " No conversation selected ".to_string(),
     };
 
-    let messages = peer_npub
+    let messages = peer_key
         .as_ref()
-        .map(|npub| app.history.get_messages(npub))
+        .map(|key| app.history.get_messages(key))
         .unwrap_or(&[]);
 
     let mut lines: Vec<Line> = vec![];

@@ -16,8 +16,14 @@ pub struct ChatEntry {
 /// Event from the Nostr network to the UI
 #[derive(Debug)]
 pub enum ChatEvent {
-    /// Incoming message from someone
+    /// Incoming DM from someone
     MessageReceived {
+        sender_npub: String,
+        content: String,
+    },
+    /// Incoming channel message
+    ChannelMessage {
+        channel_id: String,
         sender_npub: String,
         content: String,
     },
@@ -25,6 +31,15 @@ pub enum ChatEvent {
     Connected,
     #[allow(dead_code)]
     RelayError(String),
+}
+
+/// Outgoing message target
+#[derive(Debug)]
+pub enum OutgoingMessage {
+    /// DM to a specific pubkey
+    Dm(PublicKey, String),
+    /// Message to a NIP-28 channel
+    Channel(String, String), // (channel_id_hex, content)
 }
 
 /// Per-conversation message history
@@ -75,9 +90,10 @@ impl ChatHistory {
 pub async fn start_nostr(
     keys: Keys,
     relays: Vec<String>,
+    channel_ids: Vec<String>,
 ) -> Result<
     (
-        mpsc::Sender<(PublicKey, String)>,
+        mpsc::Sender<OutgoingMessage>,
         mpsc::Receiver<ChatEvent>,
         Client,
     ),
@@ -95,28 +111,56 @@ pub async fn start_nostr(
     client.set_metadata(&metadata).await?;
 
     // Subscribe to DMs
-    let filter = Filter::new()
+    let dm_filter = Filter::new()
         .kinds(vec![Kind::EncryptedDirectMessage, Kind::GiftWrap])
         .pubkey(keys.public_key());
-    client.subscribe(filter, None).await?;
+    client.subscribe(dm_filter, None).await?;
 
-    let (out_tx, mut out_rx) = mpsc::channel::<(PublicKey, String)>(64);
+    // Subscribe to channels
+    for ch_id_hex in &channel_ids {
+        if let Ok(eid) = EventId::from_hex(ch_id_hex) {
+            let ch_filter = Filter::new()
+                .kind(Kind::ChannelMessage)
+                .event(eid);
+            client.subscribe(ch_filter, None).await?;
+        }
+    }
+
+    let (out_tx, mut out_rx) = mpsc::channel::<OutgoingMessage>(64);
     let (ev_tx, ev_rx) = mpsc::channel::<ChatEvent>(256);
 
     // Outgoing message sender task
     let client_send = client.clone();
     let keys_send = keys.clone();
     tokio::spawn(async move {
-        while let Some((to, content)) = out_rx.recv().await {
-            // Send NIP-04 for compatibility
-            if let Ok(encrypted) = nip04::encrypt(keys_send.secret_key(), &to, &content) {
-                let tag = Tag::public_key(to);
-                if let Ok(ev) = EventBuilder::new(Kind::EncryptedDirectMessage, encrypted)
-                    .tag(tag)
-                    .sign(&keys_send)
-                    .await
-                {
-                    let _ = client_send.send_event(ev).await;
+        while let Some(msg) = out_rx.recv().await {
+            match msg {
+                OutgoingMessage::Dm(to, content) => {
+                    if let Ok(encrypted) = nip04::encrypt(keys_send.secret_key(), &to, &content) {
+                        let tag = Tag::public_key(to);
+                        if let Ok(ev) = EventBuilder::new(Kind::EncryptedDirectMessage, encrypted)
+                            .tag(tag)
+                            .sign(&keys_send)
+                            .await
+                        {
+                            let _ = client_send.send_event(ev).await;
+                        }
+                    }
+                }
+                OutgoingMessage::Channel(ch_id_hex, content) => {
+                    if let Ok(eid) = EventId::from_hex(&ch_id_hex) {
+                        let tags = vec![
+                            Tag::event(eid),
+                            Tag::custom(TagKind::custom("marker"), vec!["root".to_string()]),
+                        ];
+                        if let Ok(ev) = EventBuilder::new(Kind::ChannelMessage, content)
+                            .tags(tags)
+                            .sign(&keys_send)
+                            .await
+                        {
+                            let _ = client_send.send_event(ev).await;
+                        }
+                    }
                 }
             }
         }
@@ -158,6 +202,26 @@ pub async fn start_nostr(
                                 .send(ChatEvent::MessageReceived {
                                     sender_npub,
                                     content,
+                                })
+                                .await;
+                        }
+                    }
+                    Kind::ChannelMessage => {
+                        // Extract channel_id from e tag
+                        let channel_id = event.tags.iter().find_map(|t| {
+                            if t.kind() == TagKind::SingleLetter(SingleLetterTag::lowercase(Alphabet::E)) {
+                                t.content().map(|s| s.to_string())
+                            } else {
+                                None
+                            }
+                        });
+                        if let Some(ch_id) = channel_id {
+                            let sender_npub = event.pubkey.to_bech32().unwrap_or_default();
+                            let _ = ev_tx2
+                                .send(ChatEvent::ChannelMessage {
+                                    channel_id: ch_id,
+                                    sender_npub,
+                                    content: event.content.clone(),
                                 })
                                 .await;
                         }

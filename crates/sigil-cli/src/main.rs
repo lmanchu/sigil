@@ -472,9 +472,14 @@ async fn run_tui(relay: String) -> Result<(), Box<dyn std::error::Error>> {
     let history = db.load_history();
     let msg_count = db.message_count();
 
+    // Load saved channels
+    let channels = load_channels();
+    let channel_ids: Vec<String> = channels.iter().map(|c| c.id.clone()).collect();
+
     // Start Nostr client
     let relays = vec![relay.clone()];
-    let (out_tx, mut ev_rx, _client) = chat::start_nostr(keys.clone(), relays).await?;
+    let (out_tx, mut ev_rx, _client) =
+        chat::start_nostr(keys.clone(), relays, channel_ids).await?;
 
     // Setup terminal
     enable_raw_mode()?;
@@ -484,6 +489,7 @@ async fn run_tui(relay: String) -> Result<(), Box<dyn std::error::Error>> {
 
     let mut app = App::new(contacts, my_npub.clone());
     app.history = history;
+    app.channels = channels;
     app.status_line = format!(
         "Connected as {} | {} msgs | relay: {}",
         profile.display_name, msg_count, relay
@@ -527,19 +533,31 @@ async fn run_tui(relay: String) -> Result<(), Box<dyn std::error::Error>> {
                     InputMode::Editing => match key.code {
                         KeyCode::Enter => {
                             if !app.input.is_empty() {
-                                if let Some(peer_npub) = app.selected_peer_npub() {
+                                if let Some(peer_key) = app.selected_peer_key() {
                                     let content = app.input.clone();
-                                    if let Ok(pk) = PublicKey::from_bech32(&peer_npub) {
-                                        let msg = SigilMessage::parse(&content);
-                                        let entry = ChatEntry {
-                                            from_me: true,
-                                            sender_npub: my_npub.clone(),
-                                            content: msg,
-                                            timestamp: now_ts(),
-                                        };
-                                        db.save_message(&peer_npub, &entry);
-                                        app.history.add_message(&peer_npub, entry);
-                                        let _ = out_tx.send((pk, content)).await;
+                                    let msg = SigilMessage::parse(&content);
+                                    let entry = ChatEntry {
+                                        from_me: true,
+                                        sender_npub: my_npub.clone(),
+                                        content: msg,
+                                        timestamp: now_ts(),
+                                    };
+                                    db.save_message(&peer_key, &entry);
+                                    app.history.add_message(&peer_key, entry);
+
+                                    if let Some(ch_id) = peer_key.strip_prefix("ch:") {
+                                        // Channel message
+                                        let _ = out_tx
+                                            .send(chat::OutgoingMessage::Channel(
+                                                ch_id.to_string(),
+                                                content,
+                                            ))
+                                            .await;
+                                    } else if let Ok(pk) = PublicKey::from_bech32(&peer_key) {
+                                        // DM
+                                        let _ = out_tx
+                                            .send(chat::OutgoingMessage::Dm(pk, content))
+                                            .await;
                                     }
                                     app.input.clear();
                                 }
@@ -602,6 +620,23 @@ async fn run_tui(relay: String) -> Result<(), Box<dyn std::error::Error>> {
                         app.selected_contact = 0;
                     }
                 }
+                ChatEvent::ChannelMessage {
+                    channel_id,
+                    sender_npub,
+                    content,
+                } => {
+                    let key = format!("ch:{}", channel_id);
+                    let msg = SigilMessage::parse(&content);
+                    let is_me = sender_npub == my_npub;
+                    let entry = ChatEntry {
+                        from_me: is_me,
+                        sender_npub: sender_npub.clone(),
+                        content: msg,
+                        timestamp: now_ts(),
+                    };
+                    db.save_message(&key, &entry);
+                    app.history.add_message(&key, entry);
+                }
                 ChatEvent::Connected => {
                     app.status_line =
                         format!("Connected as {} | relay: {}", profile.display_name, relay);
@@ -657,6 +692,25 @@ fn handle_command(cmd: &str, app: &mut App) {
         Some("/whoami") => {
             app.status_line = format!("npub: {}", app.my_npub);
         }
+        Some("/join") => {
+            if parts.len() >= 2 {
+                let ch_id = parts[1];
+                let name = parts.get(2).copied().unwrap_or("Channel");
+                let ch = ui::JoinedChannel {
+                    id: ch_id.to_string(),
+                    name: name.to_string(),
+                };
+                if !app.channels.iter().any(|c| c.id == ch_id) {
+                    app.channels.push(ch);
+                    save_channels(&app.channels);
+                    app.status_line = format!("Joined #{}", name);
+                } else {
+                    app.status_line = "Already joined.".to_string();
+                }
+            } else {
+                app.status_line = "Usage: /join <channel_id> [name]".to_string();
+            }
+        }
         Some("/discover") => {
             app.status_line = "Use CLI: sigil discover (discovery requires relay query)".to_string();
         }
@@ -665,13 +719,46 @@ fn handle_command(cmd: &str, app: &mut App) {
         }
         Some("/help") => {
             app.status_line =
-                "/add <addr> [name] | /discover | /whoami | /quit | j/k=nav | i=type | q=quit"
+                "/add | /join <id> [name] | /whoami | /quit | j/k | i | q"
                     .to_string();
         }
         _ => {
             app.status_line = format!("Unknown command: {}", cmd);
         }
     }
+}
+
+fn load_channels() -> Vec<ui::JoinedChannel> {
+    let path = identity::sigil_dir().join("channels.json");
+    if path.exists() {
+        let data = std::fs::read_to_string(&path).unwrap_or_default();
+        #[derive(serde::Deserialize)]
+        struct Ch {
+            id: String,
+            name: String,
+        }
+        let channels: Vec<Ch> = serde_json::from_str(&data).unwrap_or_default();
+        channels
+            .into_iter()
+            .map(|c| ui::JoinedChannel {
+                id: c.id,
+                name: c.name,
+            })
+            .collect()
+    } else {
+        vec![]
+    }
+}
+
+fn save_channels(channels: &[ui::JoinedChannel]) {
+    let path = identity::sigil_dir().join("channels.json");
+    #[derive(serde::Serialize)]
+    struct Ch<'a> {
+        id: &'a str,
+        name: &'a str,
+    }
+    let data: Vec<Ch> = channels.iter().map(|c| Ch { id: &c.id, name: &c.name }).collect();
+    std::fs::write(&path, serde_json::to_string_pretty(&data).unwrap()).ok();
 }
 
 fn now_ts() -> u64 {
