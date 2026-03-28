@@ -2,5 +2,6 @@
 members = [
     "crates/sigil-core",
     "crates/sigil-agent-python",
+    "crates/sigil-cli",
 ]
 resolver = "2"

@@ -1,5 +1,29 @@
 # Changelog
 
+## v0.2.0 — 2026-03-28 (Day 1, session 2)
+
+### sigil-cli (Ratatui TUI Messenger)
+- Full terminal messenger client with Ratatui
+- Two-panel layout: contacts list (left) + chat (right) + input (bottom)
+- Vim-style navigation: j/k to select contacts, i to type, / for commands
+- First-run identity wizard: auto-generate keys, prompt for display name
+- Persistent identity: ~/.sigil/user.key + ~/.sigil/user.json
+- Contact book: ~/.sigil/contacts.json with agent metadata
+- Add contacts via `sigil add <npub>` or `sigil add sigil://agent?...`
+- In-TUI commands: /add, /whoami, /quit, /help
+- Subcommands: sigil chat, sigil add, sigil whoami, sigil contacts, sigil qr
+- NIP-04 encrypted messaging (send + receive)
+- TUI message rendering in terminal: buttons, cards, tables
+- Auto-scroll chat, unread indicators, agent badges (⚙)
+- Status bar with connection info and npub
+
+### Verified
+- [x] `sigil whoami` generates and persists identity
+- [x] `sigil add sigil://...` imports agent contact
+- [x] `sigil contacts` lists contacts with agent badges
+- [x] `sigil qr` generates shareable URI
+- [x] Clean build (zero warnings)
+
 ## v0.1.0 — 2026-03-28 (Day 1)
 
 First working prototype. Concept to functioning app in one day.
