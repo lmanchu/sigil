@@ -19,3 +19,4 @@ thiserror = "2"
 tracing = "0.1"
 tracing-subscriber = "0.3"
 dirs = "6"
+reqwest = { version = "0.12", features = ["multipart", "json"] }

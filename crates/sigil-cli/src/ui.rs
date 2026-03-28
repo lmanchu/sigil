@@ -272,6 +272,15 @@ fn render_entry<'a>(entry: &ChatEntry, contacts: &ContactBook) -> Vec<Line<'a>> 
                 ),
             ])]
         }
+        SigilMessage::File(f) => {
+            vec![Line::from(vec![
+                Span::styled(format!("{}: ", sender), prefix_style),
+                Span::styled(
+                    format!("📎 {}", f.display()),
+                    Style::default().fg(Color::Cyan),
+                ),
+            ])]
+        }
     }
 }
 

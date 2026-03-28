@@ -16,6 +16,8 @@ use crossterm::ExecutableCommand;
 use nostr_sdk::prelude::*;
 use ratatui::prelude::*;
 use sigil_core::channel::{self, ChannelInfo};
+#[allow(unused_imports)]
+use sigil_core::file;
 use sigil_core::message::SigilMessage;
 use sigil_core::qr::AgentQrData;
 use sigil_core::registry::{self, AgentRegistryEntry};
@@ -131,12 +133,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Some(Commands::Join { channel_id, relay }) => cmd_join(&channel_id, &relay).await,
         Some(Commands::Register { skills, relay }) => cmd_register(skills.as_deref(), &relay).await,
         Some(Commands::Registry { skill, relay }) => cmd_registry(skill.as_deref(), &relay).await,
-        Some(Commands::Chat { relay }) => run_tui(relay).await,
-        None => {
-            let relay = std::env::var("SIGIL_RELAY")
-                .unwrap_or_else(|_| "wss://relay.damus.io".to_string());
-            run_tui(relay).await
-        }
+        Some(Commands::Chat { relay }) => run_tui(Some(relay)).await,
+        None => run_tui(None).await,
     }
 }
 
@@ -432,7 +430,7 @@ async fn cmd_registry(skill: Option<&str>, relay: &str) -> Result<(), Box<dyn st
     Ok(())
 }
 
-async fn run_tui(relay: String) -> Result<(), Box<dyn std::error::Error>> {
+async fn run_tui(relay: Option<String>) -> Result<(), Box<dyn std::error::Error>> {
     // Load or create identity
     let (keys, profile, is_new) = identity::load_or_create_identity();
 
@@ -476,8 +474,13 @@ async fn run_tui(relay: String) -> Result<(), Box<dyn std::error::Error>> {
     let channels = load_channels();
     let channel_ids: Vec<String> = channels.iter().map(|c| c.id.clone()).collect();
 
-    // Start Nostr client
-    let relays = vec![relay.clone()];
+    // Load relays
+    let relays = load_relays(relay.as_deref());
+    let relay_display = if relays.len() == 1 {
+        relays[0].clone()
+    } else {
+        format!("{} relays", relays.len())
+    };
     let (out_tx, mut ev_rx, _client) =
         chat::start_nostr(keys.clone(), relays, channel_ids).await?;
 
@@ -491,8 +494,8 @@ async fn run_tui(relay: String) -> Result<(), Box<dyn std::error::Error>> {
     app.history = history;
     app.channels = channels;
     app.status_line = format!(
-        "Connected as {} | {} msgs | relay: {}",
-        profile.display_name, msg_count, relay
+        "Connected as {} | {} msgs | {}",
+        profile.display_name, msg_count, relay_display
     );
 
     // Main event loop
@@ -639,7 +642,7 @@ async fn run_tui(relay: String) -> Result<(), Box<dyn std::error::Error>> {
                 }
                 ChatEvent::Connected => {
                     app.status_line =
-                        format!("Connected as {} | relay: {}", profile.display_name, relay);
+                        format!("Connected as {} | {}", profile.display_name, relay_display);
                 }
                 ChatEvent::RelayError(e) => {
                     app.status_line = format!("Relay error: {}", e);
@@ -711,6 +714,22 @@ fn handle_command(cmd: &str, app: &mut App) {
                 app.status_line = "Usage: /join <channel_id> [name]".to_string();
             }
         }
+        Some("/relay") => {
+            if parts.len() >= 2 {
+                let relay_url = parts[1];
+                let mut relays = load_relays(None);
+                if !relays.contains(&relay_url.to_string()) {
+                    relays.push(relay_url.to_string());
+                    save_relays(&relays);
+                    app.status_line = format!("Added relay: {}", relay_url);
+                } else {
+                    app.status_line = "Relay already added.".to_string();
+                }
+            } else {
+                let relays = load_relays(None);
+                app.status_line = format!("Relays: {}", relays.join(", "));
+            }
+        }
         Some("/discover") => {
             app.status_line = "Use CLI: sigil discover (discovery requires relay query)".to_string();
         }
@@ -719,13 +738,42 @@ fn handle_command(cmd: &str, app: &mut App) {
         }
         Some("/help") => {
             app.status_line =
-                "/add | /join <id> [name] | /whoami | /quit | j/k | i | q"
+                "/add | /join | /relay | /whoami | /quit | j/k | i | q"
                     .to_string();
         }
         _ => {
             app.status_line = format!("Unknown command: {}", cmd);
         }
     }
+}
+
+fn load_relays(cli_relay: Option<&str>) -> Vec<String> {
+    // Priority: CLI flag > relays.json > env var > default
+    if let Some(r) = cli_relay {
+        return vec![r.to_string()];
+    }
+    let path = identity::sigil_dir().join("relays.json");
+    if path.exists() {
+        let data = std::fs::read_to_string(&path).unwrap_or_default();
+        let relays: Vec<String> = serde_json::from_str(&data).unwrap_or_default();
+        if !relays.is_empty() {
+            return relays;
+        }
+    }
+    if let Ok(r) = std::env::var("SIGIL_RELAY") {
+        return r.split(',').map(|s| s.trim().to_string()).collect();
+    }
+    // Defaults — multiple relays for reliability
+    vec![
+        "wss://relay.damus.io".to_string(),
+        "wss://nos.lol".to_string(),
+        "wss://relay.nostr.band".to_string(),
+    ]
+}
+
+fn save_relays(relays: &[String]) {
+    let path = identity::sigil_dir().join("relays.json");
+    std::fs::write(&path, serde_json::to_string_pretty(relays).unwrap()).ok();
 }
 
 fn load_channels() -> Vec<ui::JoinedChannel> {

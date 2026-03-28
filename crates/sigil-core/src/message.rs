@@ -1,3 +1,4 @@
+use crate::file::FileMessage;
 use crate::tui::TuiMessage;
 
 /// A message received by or sent from an agent
@@ -9,11 +10,18 @@ pub enum SigilMessage {
     Tui(TuiMessage),
     /// Button callback from user tapping a TUI button
     ButtonCallback { button_id: String },
+    /// File attachment
+    File(FileMessage),
 }
 
 impl SigilMessage {
-    /// Parse incoming message content — detect TUI vs plain text
+    /// Parse incoming message content — detect TUI vs file vs plain text
     pub fn parse(content: &str) -> Self {
+        if FileMessage::is_file(content) {
+            if let Some(f) = FileMessage::from_json(content) {
+                return SigilMessage::File(f);
+            }
+        }
         if TuiMessage::is_tui(content) {
             match TuiMessage::from_json(content) {
                 Ok(tui) => SigilMessage::Tui(tui),
@@ -37,6 +45,7 @@ impl SigilMessage {
             SigilMessage::ButtonCallback { button_id } => {
                 format!("sigil:callback:{}", button_id)
             }
+            SigilMessage::File(f) => f.to_json(),
         }
     }
 }
