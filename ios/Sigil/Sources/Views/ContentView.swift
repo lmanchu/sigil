@@ -3,6 +3,8 @@ import SwiftUI
 struct ContentView: View {
     @EnvironmentObject var nostrService: NostrService
     @State private var showQRScanner = false
+    @State private var showAddContact = false
+    @State private var manualNpub = ""
 
     var body: some View {
         NavigationStack {
@@ -16,10 +18,17 @@ struct ContentView: View {
             .navigationTitle("Sigil")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        showQRScanner = true
-                    } label: {
-                        Image(systemName: "qrcode.viewfinder")
+                    HStack(spacing: 12) {
+                        Button {
+                            showAddContact = true
+                        } label: {
+                            Image(systemName: "plus")
+                        }
+                        Button {
+                            showQRScanner = true
+                        } label: {
+                            Image(systemName: "qrcode.viewfinder")
+                        }
                     }
                 }
                 ToolbarItem(placement: .topBarLeading) {
@@ -30,6 +39,30 @@ struct ContentView: View {
             }
             .sheet(isPresented: $showQRScanner) {
                 QRScannerView()
+            }
+            .alert("Add Agent", isPresented: $showAddContact) {
+                TextField("npub1...", text: $manualNpub)
+                Button("Add") {
+                    let npub = manualNpub.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if !npub.isEmpty {
+                        nostrService.agents.append(AgentContact(
+                            npub: npub,
+                            name: "Echo Agent",
+                            isAgent: true
+                        ))
+                        manualNpub = ""
+                    }
+                }
+                Button("Echo Agent (Debug)") {
+                    nostrService.agents.append(AgentContact(
+                        npub: "npub13yuvfydn8g825p2w8nrp3a9vuh3ymc5cftyt433hzr3xzj7ppxms7jc060",
+                        name: "Echo Agent",
+                        isAgent: true
+                    ))
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("Enter an agent's npub or tap Echo Agent to test")
             }
             .task {
                 await nostrService.connect()
