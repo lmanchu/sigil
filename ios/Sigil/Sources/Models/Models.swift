@@ -1,24 +1,56 @@
 import Foundation
+import SwiftData
 
-struct AgentContact: Identifiable, Equatable {
-    let id = UUID()
-    let npub: String
+@Model
+class AgentContact {
+    @Attribute(.unique) var npub: String
     var name: String
     var isAgent: Bool
     var relay: String?
     var lastSeen: Date?
 
-    static func == (lhs: AgentContact, rhs: AgentContact) -> Bool {
-        lhs.npub == rhs.npub
+    // Profile
+    var about: String?
+    var avatarUrl: String?
+    var capabilities: [String]?
+    var framework: String?
+
+    var addedAt: Date
+
+    init(npub: String, name: String, isAgent: Bool, relay: String? = nil) {
+        self.npub = npub
+        self.name = name
+        self.isAgent = isAgent
+        self.relay = relay
+        self.addedAt = Date()
+    }
+
+    /// Short display of npub
+    var shortNpub: String {
+        if npub.count > 16 {
+            return "\(npub.prefix(8))...\(npub.suffix(4))"
+        }
+        return npub
     }
 }
 
-struct ChatMessage: Identifiable {
-    let id: String
-    let content: String
-    let senderNpub: String
-    let isFromMe: Bool
-    let timestamp: Date
+@Model
+class ChatMessage {
+    @Attribute(.unique) var messageId: String
+    var content: String
+    var senderNpub: String
+    var recipientNpub: String
+    var isFromMe: Bool
+    var timestamp: Date
+
+    init(messageId: String, content: String, senderNpub: String, recipientNpub: String, isFromMe: Bool, timestamp: Date) {
+        self.messageId = messageId
+        self.content = content
+        self.senderNpub = senderNpub
+        self.recipientNpub = recipientNpub
+        self.isFromMe = isFromMe
+        self.timestamp = timestamp
+    }
 
     /// Check if this is a TUI message (JSON with type field)
     var isTui: Bool {

@@ -25,13 +25,13 @@ struct ChatView: View {
                                     )
                                 }
                             }
-                            .id(msg.id)
+                            .id(msg.messageId)
                         }
                     }
                     .padding()
                 }
                 .onChange(of: messages.count) { _, _ in
-                    if let lastId = messages.last?.id {
+                    if let lastId = messages.last?.messageId {
                         withAnimation {
                             proxy.scrollTo(lastId, anchor: .bottom)
                         }
@@ -67,15 +67,20 @@ struct ChatView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                if agent.isAgent {
-                    Text("AGENT")
-                        .font(.caption2)
-                        .fontWeight(.bold)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(.blue.opacity(0.15))
-                        .foregroundStyle(.blue)
-                        .clipShape(Capsule())
+                NavigationLink(destination: AgentProfileView(agent: agent)) {
+                    HStack(spacing: 4) {
+                        if agent.isAgent {
+                            Text("AGENT")
+                                .font(.caption2)
+                                .fontWeight(.bold)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(.blue.opacity(0.15))
+                                .foregroundStyle(.blue)
+                                .clipShape(Capsule())
+                        }
+                        Image(systemName: "info.circle")
+                    }
                 }
             }
         }

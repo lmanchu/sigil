@@ -45,16 +45,16 @@ struct ContentView: View {
                 Button("Add") {
                     let npub = manualNpub.trimmingCharacters(in: .whitespacesAndNewlines)
                     if !npub.isEmpty {
-                        nostrService.agents.append(AgentContact(
+                        nostrService.addAgent(AgentContact(
                             npub: npub,
-                            name: "Echo Agent",
+                            name: "Agent",
                             isAgent: true
                         ))
                         manualNpub = ""
                     }
                 }
                 Button("Echo Agent (Debug)") {
-                    nostrService.agents.append(AgentContact(
+                    nostrService.addAgent(AgentContact(
                         npub: "npub13yuvfydn8g825p2w8nrp3a9vuh3ymc5cftyt433hzr3xzj7ppxms7jc060",
                         name: "Echo Agent",
                         isAgent: true

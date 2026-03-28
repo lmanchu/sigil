@@ -13,6 +13,7 @@
 		9E6D2A045E1841388CEF91A2 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B4C722971374ED6AE08B75E /* ContentView.swift */; };
 		3D0192973B8E458D9CB5A48B /* ChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2486E08566A648BB82FBBA9A /* ChatView.swift */; };
 		DDD4051CF64C43AF9C726041 /* QRScannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D2251B6C5D440C2B76FC37C /* QRScannerView.swift */; };
+		A3F7B82E19D84C07B521DA43 /* AgentProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E6C41D3F0A24AB8926E1F05 /* AgentProfileView.swift */; };
 		F80DD54A2DA74F7DA4782165 /* NostrSDK in Frameworks */ = {isa = PBXBuildFile; productRef = 4089EADA00CF4725AFA922DB /* NostrSDK */; };
 /* End PBXBuildFile section */
 
@@ -24,6 +25,7 @@
 		3B4C722971374ED6AE08B75E /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		2486E08566A648BB82FBBA9A /* ChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatView.swift; sourceTree = "<group>"; };
 		4D2251B6C5D440C2B76FC37C /* QRScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRScannerView.swift; sourceTree = "<group>"; };
+		7E6C41D3F0A24AB8926E1F05 /* AgentProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentProfileView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -79,6 +81,7 @@
 				3B4C722971374ED6AE08B75E /* ContentView.swift */,
 				2486E08566A648BB82FBBA9A /* ChatView.swift */,
 				4D2251B6C5D440C2B76FC37C /* QRScannerView.swift */,
+				7E6C41D3F0A24AB8926E1F05 /* AgentProfileView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -180,6 +183,7 @@
 				9E6D2A045E1841388CEF91A2 /* ContentView.swift in Sources */,
 				3D0192973B8E458D9CB5A48B /* ChatView.swift in Sources */,
 				DDD4051CF64C43AF9C726041 /* QRScannerView.swift in Sources */,
+				A3F7B82E19D84C07B521DA43 /* AgentProfileView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

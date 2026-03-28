@@ -1,8 +1,8 @@
 import Foundation
+import SwiftData
 import NostrSDK
 
-/// Notification handler that bridges nostr-sdk-swift's HandleNotification protocol
-/// to our @MainActor NostrService via a callback.
+/// Notification handler bridging nostr-sdk-swift to NostrService
 final class NotificationHandler: HandleNotification, @unchecked Sendable {
     private let onEvent: @Sendable (RelayUrl, String, Event) -> Void
 
@@ -10,29 +10,77 @@ final class NotificationHandler: HandleNotification, @unchecked Sendable {
         self.onEvent = onEvent
     }
 
-    func handleMsg(relayUrl: RelayUrl, msg: RelayMessage) async {
-        // We only care about events, not raw relay messages
-    }
+    func handleMsg(relayUrl: RelayUrl, msg: RelayMessage) async {}
 
     func handle(relayUrl: RelayUrl, subscriptionId: String, event: Event) async {
         onEvent(relayUrl, subscriptionId, event)
     }
 }
 
-/// Core Nostr service — manages keys, relay connections, and messaging
+/// Core Nostr service — manages keys, relay connections, messaging, and persistence
 @MainActor
 class NostrService: ObservableObject {
     static let shared = NostrService()
 
     @Published var agents: [AgentContact] = []
-    @Published var messages: [String: [ChatMessage]] = [:] // keyed by npub
+    @Published var messages: [String: [ChatMessage]] = [:]
     @Published var isConnected = false
 
     private var client: Client?
     private var keys: Keys?
+    private var modelContainer: ModelContainer?
+    private var modelContext: ModelContext?
 
     private init() {
         loadOrCreateKeys()
+        setupPersistence()
+        loadFromStore()
+    }
+
+    // MARK: - Persistence
+
+    private func setupPersistence() {
+        do {
+            let schema = Schema([AgentContact.self, ChatMessage.self])
+            let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
+            let container = try ModelContainer(for: schema, configurations: [config])
+            self.modelContainer = container
+            self.modelContext = ModelContext(container)
+        } catch {
+            print("Persistence setup failed: \(error)")
+        }
+    }
+
+    private func loadFromStore() {
+        guard let context = modelContext else { return }
+
+        // Load agents
+        let agentDescriptor = FetchDescriptor<AgentContact>(sortBy: [SortDescriptor(\.addedAt)])
+        if let stored = try? context.fetch(agentDescriptor) {
+            self.agents = stored
+        }
+
+        // Load messages grouped by contact
+        let msgDescriptor = FetchDescriptor<ChatMessage>(sortBy: [SortDescriptor(\.timestamp)])
+        if let stored = try? context.fetch(msgDescriptor) {
+            for msg in stored {
+                let key = msg.isFromMe ? msg.recipientNpub : msg.senderNpub
+                if messages[key] == nil { messages[key] = [] }
+                messages[key]?.append(msg)
+            }
+        }
+    }
+
+    private func saveAgent(_ agent: AgentContact) {
+        guard let context = modelContext else { return }
+        context.insert(agent)
+        try? context.save()
+    }
+
+    private func saveMessage(_ msg: ChatMessage) {
+        guard let context = modelContext else { return }
+        context.insert(msg)
+        try? context.save()
     }
 
     // MARK: - Key Management
@@ -79,7 +127,6 @@ class NostrService: ObservableObject {
             self.client = client
             self.isConnected = true
 
-            // Subscribe to DMs (NIP-04, kind 4)
             let dmKind = Kind(kind: 4)
             let filter = Filter()
                 .kind(kind: dmKind)
@@ -87,7 +134,6 @@ class NostrService: ObservableObject {
 
             _ = try await client.subscribe(filter: filter, opts: nil)
 
-            // Start listening for incoming events
             let handler = NotificationHandler { [weak self] relayUrl, subscriptionId, event in
                 Task { @MainActor in
                     self?.handleIncomingEvent(event)
@@ -105,7 +151,14 @@ class NostrService: ObservableObject {
         guard let keys = keys else { return }
 
         let eventKind = event.kind().asU16()
-        guard eventKind == 4 else { return } // NIP-04 encrypted DM
+        guard eventKind == 4 else { return }
+
+        let eventId = event.id().toHex()
+
+        // Dedup — skip if already stored
+        if messages.values.flatMap({ $0 }).contains(where: { $0.messageId == eventId }) {
+            return
+        }
 
         do {
             let content = try nip04Decrypt(
@@ -115,9 +168,10 @@ class NostrService: ObservableObject {
             )
             let senderNpub = (try? event.author().toBech32()) ?? "unknown"
             let msg = ChatMessage(
-                id: event.id().toHex(),
+                messageId: eventId,
                 content: content,
                 senderNpub: senderNpub,
+                recipientNpub: self.npub,
                 isFromMe: false,
                 timestamp: Date(timeIntervalSince1970: TimeInterval(event.createdAt().asSecs()))
             )
@@ -126,14 +180,17 @@ class NostrService: ObservableObject {
                 self.messages[senderNpub] = []
             }
             self.messages[senderNpub]?.append(msg)
+            saveMessage(msg)
 
             // Auto-add as agent contact if not already known
             if !self.agents.contains(where: { $0.npub == senderNpub }) {
-                self.agents.append(AgentContact(
+                let agent = AgentContact(
                     npub: senderNpub,
                     name: "Agent \(senderNpub.prefix(12))...",
                     isAgent: true
-                ))
+                )
+                self.agents.append(agent)
+                saveAgent(agent)
             }
         } catch {
             print("Decrypt error: \(error)")
@@ -162,9 +219,10 @@ class NostrService: ObservableObject {
             _ = try await client.sendEvent(event: event)
 
             let msg = ChatMessage(
-                id: UUID().uuidString,
+                messageId: UUID().uuidString,
                 content: content,
                 senderNpub: self.npub,
+                recipientNpub: npub,
                 isFromMe: true,
                 timestamp: Date()
             )
@@ -173,8 +231,18 @@ class NostrService: ObservableObject {
                 messages[npub] = []
             }
             messages[npub]?.append(msg)
+            saveMessage(msg)
         } catch {
             print("Send error: \(error)")
+        }
+    }
+
+    // MARK: - Contact Management
+
+    func addAgent(_ agent: AgentContact) {
+        if !agents.contains(where: { $0.npub == agent.npub }) {
+            agents.append(agent)
+            saveAgent(agent)
         }
     }
 
@@ -207,15 +275,13 @@ class NostrService: ObservableObject {
 
         guard let agentNpub = npub else { return false }
 
-        if !agents.contains(where: { $0.npub == agentNpub }) {
-            agents.append(AgentContact(
-                npub: agentNpub,
-                name: name ?? "Agent",
-                isAgent: true,
-                relay: relay
-            ))
-        }
-
+        let agent = AgentContact(
+            npub: agentNpub,
+            name: name ?? "Agent",
+            isAgent: true,
+            relay: relay
+        )
+        addAgent(agent)
         return true
     }
 }
