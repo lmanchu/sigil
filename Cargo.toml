@@ -1,0 +1,6 @@
+[workspace]
+members = [
+    "crates/sigil-core",
+    "crates/sigil-agent-python",
+]
+resolver = "2"
