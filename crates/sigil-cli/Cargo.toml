@@ -8,6 +8,10 @@ description = "Terminal messenger client for Sigil — AI-Native Messenger"
 name = "sigil"
 path = "src/main.rs"
 
+[[bin]]
+name = "sigil-test"
+path = "src/test_e2e.rs"
+
 [dependencies]
 sigil-core = { path = "../sigil-core" }
 nostr-sdk = { version = "0.39", features = ["all-nips"] }
@@ -22,3 +26,4 @@ tracing-subscriber = "0.3"
 clap = { version = "4", features = ["derive"] }
 futures = "0.3"
 unicode-width = "0.2"
+rusqlite = { version = "0.32", features = ["bundled"] }

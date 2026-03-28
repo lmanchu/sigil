@@ -1,6 +1,8 @@
 mod chat;
 mod contacts;
+mod discovery;
 mod identity;
+mod storage;
 mod ui;
 
 use chat::{ChatEntry, ChatEvent};
@@ -17,6 +19,7 @@ use sigil_core::message::SigilMessage;
 use sigil_core::qr::AgentQrData;
 use std::io;
 use std::time::Duration;
+use storage::Storage;
 use ui::{App, InputMode};
 
 #[derive(Parser)]
@@ -52,6 +55,15 @@ enum Commands {
         #[arg(short, long, default_value = "wss://relay.damus.io")]
         relay: String,
     },
+    /// Discover agents on the relay network
+    Discover {
+        /// Relay URL
+        #[arg(short, long, default_value = "wss://relay.damus.io")]
+        relay: String,
+        /// Max agents to find
+        #[arg(short, long, default_value = "20")]
+        limit: usize,
+    },
 }
 
 #[tokio::main]
@@ -75,6 +87,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             cmd_qr(&relay);
             Ok(())
         }
+        Some(Commands::Discover { relay, limit }) => cmd_discover(&relay, limit).await,
         Some(Commands::Chat { relay }) => run_tui(relay).await,
         None => {
             let relay = std::env::var("SIGIL_RELAY")
@@ -120,6 +133,8 @@ fn cmd_whoami() {
     println!("  Name:  {}", if profile.display_name.is_empty() { "(not set)" } else { &profile.display_name });
     println!("  npub:  {}", npub);
     println!("  Key:   ~/.sigil/user.key");
+    let db = Storage::open();
+    println!("  Msgs:  {} stored", db.message_count());
 }
 
 fn cmd_contacts() {
@@ -152,6 +167,48 @@ fn cmd_qr(relay: &str) {
         capabilities: vec![],
     };
     println!("{}", data.to_uri());
+}
+
+async fn cmd_discover(relay: &str, limit: usize) -> Result<(), Box<dyn std::error::Error>> {
+    println!("Searching for agents on {}...", relay);
+
+    let keys = Keys::generate(); // ephemeral keys for discovery
+    let client = Client::new(keys);
+    client.add_relay(relay).await?;
+    client.connect().await;
+    tokio::time::sleep(Duration::from_secs(2)).await;
+
+    let agents = discovery::discover_agents(&client, Duration::from_secs(10), limit).await;
+
+    if agents.is_empty() {
+        println!("No agents found. (Agents need agent=true in their kind:0 metadata)");
+    } else {
+        println!("Found {} agent(s):\n", agents.len());
+        let book = ContactBook::load();
+        for (i, agent) in agents.iter().enumerate() {
+            let already = book.contacts.iter().any(|c| c.npub == agent.npub);
+            let marker = if already { " (saved)" } else { "" };
+            println!("  {}. ⚙ {}{}", i + 1, agent.name, marker);
+            if let Some(about) = &agent.about {
+                let short = if about.len() > 60 { format!("{}...", &about[..60]) } else { about.clone() };
+                println!("     {}", short);
+            }
+            let short_npub = if agent.npub.len() > 30 {
+                format!("{}...", &agent.npub[..30])
+            } else {
+                agent.npub.clone()
+            };
+            println!("     npub: {}", short_npub);
+            if !agent.capabilities.is_empty() {
+                println!("     skills: {}", agent.capabilities.join(", "));
+            }
+            println!();
+        }
+        println!("Add an agent: sigil add <npub> --name <name>");
+    }
+
+    client.disconnect().await;
+    Ok(())
 }
 
 async fn run_tui(relay: String) -> Result<(), Box<dyn std::error::Error>> {
@@ -189,6 +246,11 @@ async fn run_tui(relay: String) -> Result<(), Box<dyn std::error::Error>> {
     let contacts = ContactBook::load();
     let my_npub = keys.public_key().to_bech32().unwrap_or_default();
 
+    // Open storage and load history
+    let db = Storage::open();
+    let history = db.load_history();
+    let msg_count = db.message_count();
+
     // Start Nostr client
     let relays = vec![relay.clone()];
     let (out_tx, mut ev_rx, _client) = chat::start_nostr(keys.clone(), relays).await?;
@@ -200,7 +262,11 @@ async fn run_tui(relay: String) -> Result<(), Box<dyn std::error::Error>> {
     let mut terminal = Terminal::new(backend)?;
 
     let mut app = App::new(contacts, my_npub.clone());
-    app.status_line = format!("Connected as {} | relay: {}", profile.display_name, relay);
+    app.history = history;
+    app.status_line = format!(
+        "Connected as {} | {} msgs | relay: {}",
+        profile.display_name, msg_count, relay
+    );
 
     // Main event loop
     loop {
@@ -242,21 +308,16 @@ async fn run_tui(relay: String) -> Result<(), Box<dyn std::error::Error>> {
                             if !app.input.is_empty() {
                                 if let Some(peer_npub) = app.selected_peer_npub() {
                                     let content = app.input.clone();
-                                    // Parse recipient public key
                                     if let Ok(pk) = PublicKey::from_bech32(&peer_npub) {
                                         let msg = SigilMessage::parse(&content);
-                                        app.history.add_message(
-                                            &peer_npub,
-                                            ChatEntry {
-                                                from_me: true,
-                                                sender_npub: my_npub.clone(),
-                                                content: msg,
-                                                timestamp: std::time::SystemTime::now()
-                                                    .duration_since(std::time::UNIX_EPOCH)
-                                                    .unwrap()
-                                                    .as_secs(),
-                                            },
-                                        );
+                                        let entry = ChatEntry {
+                                            from_me: true,
+                                            sender_npub: my_npub.clone(),
+                                            content: msg,
+                                            timestamp: now_ts(),
+                                        };
+                                        db.save_message(&peer_npub, &entry);
+                                        app.history.add_message(&peer_npub, entry);
                                         let _ = out_tx.send((pk, content)).await;
                                     }
                                     app.input.clear();
@@ -308,19 +369,14 @@ async fn run_tui(relay: String) -> Result<(), Box<dyn std::error::Error>> {
                     content,
                 } => {
                     let msg = SigilMessage::parse(&content);
-                    app.history.add_message(
-                        &sender_npub,
-                        ChatEntry {
-                            from_me: false,
-                            sender_npub: sender_npub.clone(),
-                            content: msg,
-                            timestamp: std::time::SystemTime::now()
-                                .duration_since(std::time::UNIX_EPOCH)
-                                .unwrap()
-                                .as_secs(),
-                        },
-                    );
-                    // Auto-select sender if no contact selected or empty list
+                    let entry = ChatEntry {
+                        from_me: false,
+                        sender_npub: sender_npub.clone(),
+                        content: msg,
+                        timestamp: now_ts(),
+                    };
+                    db.save_message(&sender_npub, &entry);
+                    app.history.add_message(&sender_npub, entry);
                     if app.peer_list().len() == 1 {
                         app.selected_contact = 0;
                     }
@@ -343,7 +399,7 @@ async fn run_tui(relay: String) -> Result<(), Box<dyn std::error::Error>> {
     // Cleanup
     disable_raw_mode()?;
     io::stdout().execute(LeaveAlternateScreen)?;
-    println!("Goodbye.");
+    println!("Goodbye. ({} messages saved)", db.message_count());
     Ok(())
 }
 
@@ -380,15 +436,26 @@ fn handle_command(cmd: &str, app: &mut App) {
         Some("/whoami") => {
             app.status_line = format!("npub: {}", app.my_npub);
         }
+        Some("/discover") => {
+            app.status_line = "Use CLI: sigil discover (discovery requires relay query)".to_string();
+        }
         Some("/quit") | Some("/q") => {
             app.should_quit = true;
         }
         Some("/help") => {
             app.status_line =
-                "/add <addr> [name] | /whoami | /quit | j/k=nav | i=type | q=quit".to_string();
+                "/add <addr> [name] | /discover | /whoami | /quit | j/k=nav | i=type | q=quit"
+                    .to_string();
         }
         _ => {
             app.status_line = format!("Unknown command: {}", cmd);
         }
     }
+}
+
+fn now_ts() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs()
 }

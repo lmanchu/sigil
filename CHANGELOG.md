@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.3.0 — 2026-03-28 (Day 1, session 2 continued)
+
+### SQLite Message Persistence
+- Chat history stored in ~/.sigil/messages.db
+- Auto-save on send and receive
+- Auto-load on startup — messages survive restarts
+- `sigil whoami` shows stored message count
+
+### Agent Discovery
+- `sigil discover` searches relay for agents with `agent=true` metadata
+- Shows name, about, capabilities, npub for each found agent
+- Marks already-saved contacts with `(saved)` badge
+- Scans Nostr kind:0 metadata events on connected relays
+
 ## v0.2.0 — 2026-03-28 (Day 1, session 2)
 
 ### sigil-cli (Ratatui TUI Messenger)
