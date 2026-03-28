@@ -40,7 +40,10 @@ async fn main() {
     agent.on_message(|msg, sender| {
         println!("📨 From {}: {}", sender.to_bech32().unwrap_or_default(), msg);
         let lower = msg.to_lowercase();
-        if lower.contains("menu") || lower.contains("help") {
+        if msg.starts_with("sigil:callback:") {
+            let button_id = msg.strip_prefix("sigil:callback:").unwrap_or("");
+            Some(format!("✅ You tapped: {}", button_id))
+        } else if lower.contains("menu") || lower.contains("help") {
             // Reply with TUI buttons
             Some(r#"{"type":"buttons","text":"What would you like me to do?","items":[{"id":"calendar","label":"📅 Check Calendar","style":"primary"},{"id":"email","label":"📧 Read Email","style":"secondary"},{"id":"tasks","label":"✅ Show Tasks","style":"secondary"}]}"#.to_string())
         } else if lower.contains("status") {

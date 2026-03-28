@@ -17,8 +17,15 @@ struct ChatView: View {
                 ScrollView {
                     LazyVStack(spacing: 8) {
                         ForEach(messages) { msg in
-                            MessageBubble(message: msg)
-                                .id(msg.id)
+                            MessageBubble(message: msg) { buttonId in
+                                Task {
+                                    await nostrService.sendMessage(
+                                        to: agent.npub,
+                                        content: "sigil:callback:\(buttonId)"
+                                    )
+                                }
+                            }
+                            .id(msg.id)
                         }
                     }
                     .padding()
@@ -89,6 +96,7 @@ struct ChatView: View {
 
 struct MessageBubble: View {
     let message: ChatMessage
+    var onButtonTap: ((String) -> Void)?
 
     var body: some View {
         HStack {
@@ -96,7 +104,7 @@ struct MessageBubble: View {
 
             VStack(alignment: message.isFromMe ? .trailing : .leading, spacing: 4) {
                 if message.isTui {
-                    TuiMessageView(content: message.content)
+                    TuiMessageView(content: message.content, onButtonTap: onButtonTap)
                 } else {
                     Text(message.content)
                         .padding(.horizontal, 14)
@@ -120,6 +128,7 @@ struct MessageBubble: View {
 
 struct TuiMessageView: View {
     let content: String
+    var onButtonTap: ((String) -> Void)?
 
     private var json: [String: Any]? {
         guard let data = content.data(using: .utf8) else { return nil }
@@ -161,7 +170,9 @@ struct TuiMessageView: View {
             if let items = json["items"] as? [[String: Any]] {
                 ForEach(Array(items.enumerated()), id: \.offset) { _, item in
                     Button {
-                        // TODO: send callback
+                        if let id = item["id"] as? String {
+                            onButtonTap?(id)
+                        }
                     } label: {
                         Text(item["label"] as? String ?? "")
                             .frame(maxWidth: .infinity)
@@ -190,7 +201,9 @@ struct TuiMessageView: View {
             if let actions = json["actions"] as? [[String: Any]] {
                 ForEach(Array(actions.enumerated()), id: \.offset) { _, action in
                     Button(action["label"] as? String ?? "") {
-                        // TODO: send callback
+                        if let id = action["id"] as? String {
+                            onButtonTap?(id)
+                        }
                     }
                     .buttonStyle(.borderedProminent)
                 }
