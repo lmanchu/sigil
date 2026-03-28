@@ -24,10 +24,14 @@ Sigil is a messenger built for the agent era — where agents and humans communi
 | Agent identity (kind:0 + agent field) | ✅ |
 | QR code URI generation | ✅ |
 | TUI message format (JSON schema) | ✅ |
+| TUI buttons + card rendering (native SwiftUI) | ✅ |
+| TUI button callback (tap → agent receives) | ✅ |
 | Persistent keypair (~/.sigil/) | ✅ |
 | **Damus ↔ Echo Agent E2E verified** | ✅ |
-| PyO3 Python binding | 🔲 Placeholder |
-| iOS client | 🔲 Week 2 |
+| **iOS App ↔ Echo Agent E2E verified** | ✅ |
+| PyO3 Python binding (SigilAgent, TuiButtons) | ✅ |
+| Mac Catalyst | ✅ |
+| QR scanner (needs real device) | 🔲 |
 
 ## Architecture
 
