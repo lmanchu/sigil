@@ -123,9 +123,10 @@ impl SigilAgent {
             *c = Some(client.clone());
         }
 
-        // Subscribe to GiftWrap (NIP-17 private DMs)
+        // Subscribe to both NIP-04 (legacy DM) and NIP-17 (GiftWrap)
+        // Damus and most clients still use NIP-04 by default
         let filter = Filter::new()
-            .kind(Kind::GiftWrap)
+            .kinds(vec![Kind::EncryptedDirectMessage, Kind::GiftWrap])
             .pubkey(self.keys.public_key());
 
         client.subscribe(filter, None).await?;
@@ -139,31 +140,58 @@ impl SigilAgent {
         loop {
             match notifications.recv().await {
                 Ok(RelayPoolNotification::Event { event, .. }) => {
-                    if event.kind == Kind::GiftWrap {
-                        // Unwrap NIP-17 gift wrap
-                        match UnwrappedGift::from_gift_wrap(&keys, &event).await {
-                            Ok(unwrapped) => {
-                                let content = unwrapped.rumor.content.clone();
-                                let sender = unwrapped.sender;
-
-                                tracing::info!("Message from {}: {}",
-                                    sender.to_bech32().unwrap_or_default(),
-                                    &content[..content.len().min(50)]
-                                );
-
-                                if let Some(ref h) = handler {
-                                    if let Some(reply) = h(content, sender) {
-                                        let empty_tags: Vec<Tag> = vec![];
-                                        let _ = client_for_reply
-                                            .send_private_msg(sender, reply, empty_tags)
-                                            .await;
+                    match event.kind {
+                        Kind::GiftWrap => {
+                            // NIP-17 modern encrypted DM
+                            match UnwrappedGift::from_gift_wrap(&keys, &event).await {
+                                Ok(unwrapped) => {
+                                    let content = unwrapped.rumor.content.clone();
+                                    let sender = unwrapped.sender;
+                                    tracing::info!("[NIP-17] From {}: {}",
+                                        sender.to_bech32().unwrap_or_default(),
+                                        &content[..content.len().min(50)]
+                                    );
+                                    if let Some(ref h) = handler {
+                                        if let Some(reply) = h(content, sender) {
+                                            let empty_tags: Vec<Tag> = vec![];
+                                            let _ = client_for_reply
+                                                .send_private_msg(sender, reply, empty_tags)
+                                                .await;
+                                        }
                                     }
                                 }
-                            }
-                            Err(e) => {
-                                tracing::debug!("Failed to unwrap gift: {}", e);
+                                Err(e) => tracing::debug!("Gift unwrap failed: {}", e),
                             }
                         }
+                        Kind::EncryptedDirectMessage => {
+                            // NIP-04 legacy DM (Damus default)
+                            let sender = event.pubkey;
+                            match nip04::decrypt(keys.secret_key(), &sender, &event.content) {
+                                Ok(content) => {
+                                    tracing::info!("[NIP-04] From {}: {}",
+                                        sender.to_bech32().unwrap_or_default(),
+                                        &content[..content.len().min(50)]
+                                    );
+                                    if let Some(ref h) = handler {
+                                        if let Some(reply) = h(content, sender) {
+                                            if let Ok(encrypted) = nip04::encrypt(
+                                                keys.secret_key(), &sender, &reply
+                                            ) {
+                                                let tag = Tag::public_key(sender);
+                                                if let Ok(ev) = EventBuilder::new(
+                                                    Kind::EncryptedDirectMessage,
+                                                    encrypted,
+                                                ).tag(tag).sign(&keys).await {
+                                                    let _ = client_for_reply.send_event(ev).await;
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                                Err(e) => tracing::debug!("NIP-04 decrypt failed: {}", e),
+                            }
+                        }
+                        _ => {}
                     }
                 }
                 Ok(RelayPoolNotification::Shutdown) => break,
