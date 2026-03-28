@@ -1,8 +1,12 @@
 [package]
 name = "sigil-core"
-version = "0.1.0"
+version = "0.4.0"
 edition = "2021"
 description = "Core library for Sigil AI-Native Messenger — Nostr-based agent messaging"
+license = "MIT"
+repository = "https://github.com/lmanchu/sigil"
+keywords = ["nostr", "messenger", "ai", "agent"]
+categories = ["network-programming"]
 
 [dependencies]
 nostr-sdk = { version = "0.39", features = ["all-nips"] }

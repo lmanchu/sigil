@@ -15,8 +15,10 @@ use crossterm::terminal::{
 use crossterm::ExecutableCommand;
 use nostr_sdk::prelude::*;
 use ratatui::prelude::*;
+use sigil_core::channel::{self, ChannelInfo};
 use sigil_core::message::SigilMessage;
 use sigil_core::qr::AgentQrData;
+use sigil_core::registry::{self, AgentRegistryEntry};
 use std::io;
 use std::time::Duration;
 use storage::Storage;
@@ -64,6 +66,43 @@ enum Commands {
         #[arg(short, long, default_value = "20")]
         limit: usize,
     },
+    /// Create a new group channel
+    Channel {
+        /// Channel name
+        name: String,
+        /// Channel description
+        #[arg(short, long)]
+        about: Option<String>,
+        /// Relay URL
+        #[arg(short, long, default_value = "wss://relay.damus.io")]
+        relay: String,
+    },
+    /// Join a channel and show messages
+    Join {
+        /// Channel event ID (hex or note1...)
+        channel_id: String,
+        /// Relay URL
+        #[arg(short, long, default_value = "wss://relay.damus.io")]
+        relay: String,
+    },
+    /// Register this agent in the Sigil agent registry
+    Register {
+        /// Agent skills (comma-separated)
+        #[arg(short, long)]
+        skills: Option<String>,
+        /// Relay URL
+        #[arg(short, long, default_value = "wss://relay.damus.io")]
+        relay: String,
+    },
+    /// Search the agent registry
+    Registry {
+        /// Filter by skill
+        #[arg(short, long)]
+        skill: Option<String>,
+        /// Relay URL
+        #[arg(short, long, default_value = "wss://relay.damus.io")]
+        relay: String,
+    },
 }
 
 #[tokio::main]
@@ -88,6 +127,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             Ok(())
         }
         Some(Commands::Discover { relay, limit }) => cmd_discover(&relay, limit).await,
+        Some(Commands::Channel { name, about, relay }) => cmd_channel(&name, about.as_deref(), &relay).await,
+        Some(Commands::Join { channel_id, relay }) => cmd_join(&channel_id, &relay).await,
+        Some(Commands::Register { skills, relay }) => cmd_register(skills.as_deref(), &relay).await,
+        Some(Commands::Registry { skill, relay }) => cmd_registry(skill.as_deref(), &relay).await,
         Some(Commands::Chat { relay }) => run_tui(relay).await,
         None => {
             let relay = std::env::var("SIGIL_RELAY")
@@ -205,6 +248,184 @@ async fn cmd_discover(relay: &str, limit: usize) -> Result<(), Box<dyn std::erro
             println!();
         }
         println!("Add an agent: sigil add <npub> --name <name>");
+    }
+
+    client.disconnect().await;
+    Ok(())
+}
+
+async fn cmd_channel(name: &str, about: Option<&str>, relay: &str) -> Result<(), Box<dyn std::error::Error>> {
+    let (keys, _, _) = identity::load_or_create_identity();
+    let client = Client::new(keys.clone());
+    client.add_relay(relay).await?;
+    client.connect().await;
+    tokio::time::sleep(Duration::from_secs(2)).await;
+
+    let info = ChannelInfo {
+        name: name.to_string(),
+        about: about.map(|s| s.to_string()),
+        picture: None,
+    };
+
+    let channel_id = channel::create_channel(&client, &keys, &info).await?;
+    println!("Channel created!");
+    println!("  Name: {}", name);
+    println!("  ID:   {}", channel_id.to_hex());
+    println!();
+    println!("Join:  sigil join {}", channel_id.to_hex());
+    println!("Share: sigil join {} --relay {}", channel_id.to_hex(), relay);
+
+    client.disconnect().await;
+    Ok(())
+}
+
+async fn cmd_join(channel_id_str: &str, relay: &str) -> Result<(), Box<dyn std::error::Error>> {
+    let (keys, profile, _) = identity::load_or_create_identity();
+    let channel_id = EventId::from_hex(channel_id_str)?;
+
+    let client = Client::new(keys.clone());
+    client.add_relay(relay).await?;
+    client.connect().await;
+    tokio::time::sleep(Duration::from_secs(2)).await;
+
+    // Fetch channel info
+    if let Some(info) = channel::fetch_channel_info(&client, channel_id).await? {
+        println!("Channel: {}", info.name);
+        if let Some(about) = &info.about {
+            println!("  {}", about);
+        }
+    } else {
+        println!("Channel: {}", &channel_id_str[..16]);
+    }
+    println!();
+
+    // Fetch history
+    let messages = channel::fetch_channel_messages(&client, channel_id, 50).await?;
+    let contacts = ContactBook::load();
+    for msg in &messages {
+        let sender_npub = msg.sender.to_bech32().unwrap_or_default();
+        let name = contacts.display_name(&sender_npub);
+        println!("  {}: {}", name, msg.content);
+    }
+    if messages.is_empty() {
+        println!("  (no messages yet)");
+    }
+    println!();
+
+    // Subscribe and interactive loop
+    let filter = channel::channel_filter(channel_id);
+    client.subscribe(filter, None).await?;
+
+    println!("Type a message and press Enter. Ctrl+C to exit.");
+    println!();
+
+    let mut notifications = client.notifications();
+    let display_name = profile.display_name.clone();
+
+    // Spawn listener
+    let keys_listen = keys.clone();
+    let _contacts = contacts;
+    tokio::spawn(async move {
+        loop {
+            match notifications.recv().await {
+                Ok(RelayPoolNotification::Event { event, .. }) => {
+                    if event.kind == Kind::ChannelMessage && event.pubkey != keys_listen.public_key() {
+                        let sender = event.pubkey.to_bech32().unwrap_or_default();
+                        let short = if sender.len() > 16 { &sender[..16] } else { &sender };
+                        println!("  {}: {}", short, event.content);
+                    }
+                }
+                Ok(RelayPoolNotification::Shutdown) => break,
+                _ => {}
+            }
+        }
+    });
+
+    // Read stdin for sending
+    let stdin = io::BufRead::lines(io::BufReader::new(io::stdin()));
+    for line in stdin {
+        let line = line?;
+        if line.is_empty() {
+            continue;
+        }
+        channel::send_channel_message(&client, &keys, channel_id, &line, Some(relay)).await?;
+        println!("  {}: {}", display_name, line);
+    }
+
+    client.disconnect().await;
+    Ok(())
+}
+
+async fn cmd_register(skills: Option<&str>, relay: &str) -> Result<(), Box<dyn std::error::Error>> {
+    let (keys, profile, _) = identity::load_or_create_identity();
+    let client = Client::new(keys.clone());
+    client.add_relay(relay).await?;
+    client.connect().await;
+    tokio::time::sleep(Duration::from_secs(2)).await;
+
+    let skill_list: Vec<String> = skills
+        .unwrap_or("")
+        .split(',')
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .collect();
+
+    let entry = AgentRegistryEntry {
+        name: profile.display_name.clone(),
+        about: None,
+        picture: None,
+        framework: Some("sigil".to_string()),
+        skills: skill_list.clone(),
+        tui: true,
+        relay: Some(relay.to_string()),
+        version: Some("0.3.0".to_string()),
+    };
+
+    let event_id = registry::publish_agent(&client, &keys, &entry).await?;
+    println!("Registered in agent registry!");
+    println!("  Name:   {}", profile.display_name);
+    println!("  Skills: {}", if skill_list.is_empty() { "(none)".to_string() } else { skill_list.join(", ") });
+    println!("  Event:  {}", event_id.to_hex());
+
+    client.disconnect().await;
+    Ok(())
+}
+
+async fn cmd_registry(skill: Option<&str>, relay: &str) -> Result<(), Box<dyn std::error::Error>> {
+    println!("Searching agent registry on {}...", relay);
+
+    let keys = Keys::generate();
+    let client = Client::new(keys);
+    client.add_relay(relay).await?;
+    client.connect().await;
+    tokio::time::sleep(Duration::from_secs(2)).await;
+
+    let agents = registry::search_agents(&client, skill, 50).await?;
+
+    if agents.is_empty() {
+        println!("No agents found in registry.");
+        if skill.is_some() {
+            println!("Try without --skill filter, or agents need to `sigil register`.");
+        }
+    } else {
+        println!("Found {} agent(s):\n", agents.len());
+        let contacts = ContactBook::load();
+        for (i, (pk, entry)) in agents.iter().enumerate() {
+            let npub = pk.to_bech32().unwrap_or_default();
+            let saved = contacts.find(&npub).is_some();
+            let marker = if saved { " (saved)" } else { "" };
+            println!("  {}. {} {}{}", i + 1, entry.name,
+                entry.framework.as_deref().unwrap_or(""), marker);
+            if let Some(about) = &entry.about {
+                println!("     {}", about);
+            }
+            if !entry.skills.is_empty() {
+                println!("     skills: {}", entry.skills.join(", "));
+            }
+            let short = if npub.len() > 30 { format!("{}...", &npub[..30]) } else { npub };
+            println!("     npub: {}", short);
+            println!();
+        }
     }
 
     client.disconnect().await;

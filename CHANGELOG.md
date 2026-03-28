@@ -1,6 +1,25 @@
 # Changelog
 
-## v0.3.0 — 2026-03-28 (Day 1, session 2 continued)
+## v0.4.0 — 2026-03-28 (Day 1, session 2 continued)
+
+### NIP-28 Group Chat
+- `sigil channel <name>` creates a public NIP-28 channel
+- `sigil join <channel_id>` joins channel with history + live messages
+- Agents and humans share the same channels
+- Interactive stdin loop for sending messages
+
+### Agent Registry (kind:31990)
+- Custom addressable Nostr event for structured agent profiles
+- `sigil register --skills chat,calendar` publishes agent to registry
+- `sigil registry` searches registry, optionally filtered by `--skill`
+- Skills stored as hashtag tags for relay-level filtering
+- Replaces hacking agent metadata into kind:0
+
+### CLI Publish
+- `cargo install --git https://github.com/lmanchu/sigil sigil-cli` works
+- MIT license added
+- Proper crates.io metadata (keywords, categories, repository)
+- Both sigil-core and sigil-cli versioned at 0.4.0
 
 ### SQLite Message Persistence
 - Chat history stored in ~/.sigil/messages.db
@@ -8,11 +27,10 @@
 - Auto-load on startup — messages survive restarts
 - `sigil whoami` shows stored message count
 
-### Agent Discovery
+### Agent Discovery (kind:0)
 - `sigil discover` searches relay for agents with `agent=true` metadata
 - Shows name, about, capabilities, npub for each found agent
 - Marks already-saved contacts with `(saved)` badge
-- Scans Nostr kind:0 metadata events on connected relays
 
 ## v0.2.0 — 2026-03-28 (Day 1, session 2)
 
