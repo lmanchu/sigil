@@ -1,6 +1,24 @@
 import Foundation
 import NostrSDK
 
+/// Notification handler that bridges nostr-sdk-swift's HandleNotification protocol
+/// to our @MainActor NostrService via a callback.
+final class NotificationHandler: HandleNotification, @unchecked Sendable {
+    private let onEvent: @Sendable (RelayUrl, String, Event) -> Void
+
+    init(onEvent: @escaping @Sendable (RelayUrl, String, Event) -> Void) {
+        self.onEvent = onEvent
+    }
+
+    func handleMsg(relayUrl: RelayUrl, msg: RelayMessage) async {
+        // We only care about events, not raw relay messages
+    }
+
+    func handle(relayUrl: RelayUrl, subscriptionId: String, event: Event) async {
+        onEvent(relayUrl, subscriptionId, event)
+    }
+}
+
 /// Core Nostr service — manages keys, relay connections, and messaging
 @MainActor
 class NostrService: ObservableObject {
@@ -20,7 +38,7 @@ class NostrService: ObservableObject {
     // MARK: - Key Management
 
     var npub: String {
-        keys?.publicKey().toBech32() ?? "unknown"
+        (try? keys?.publicKey().toBech32()) ?? "unknown"
     }
 
     private func loadOrCreateKeys() {
@@ -52,75 +70,73 @@ class NostrService: ObservableObject {
         guard let keys = keys else { return }
 
         do {
-            let client = Client(signer: .keys(keys: keys))
-            try await client.addRelay(url: "wss://relay.damus.io")
+            let signer = NostrSigner.keys(keys: keys)
+            let client = ClientBuilder().signer(signer: signer).build()
+            let relayUrl = try RelayUrl.parse(url: "wss://relay.damus.io")
+            _ = try await client.addRelay(url: relayUrl)
             await client.connect()
 
             self.client = client
             self.isConnected = true
 
-            // Subscribe to DMs (NIP-04)
+            // Subscribe to DMs (NIP-04, kind 4)
+            let dmKind = Kind(kind: 4)
             let filter = Filter()
-                .kind(kind: .encryptedDirectMessage)
-                .pubkey(publicKey: keys.publicKey())
+                .kind(kind: dmKind)
+                .pubkey(pubkey: keys.publicKey())
 
-            try await client.subscribe(filters: [filter])
+            _ = try await client.subscribe(filter: filter, opts: nil)
 
-            // Start listening
-            await listenForMessages()
+            // Start listening for incoming events
+            let handler = NotificationHandler { [weak self] relayUrl, subscriptionId, event in
+                Task { @MainActor in
+                    self?.handleIncomingEvent(event)
+                }
+            }
+            try await client.handleNotifications(handler: handler)
         } catch {
             print("Connection error: \(error)")
         }
     }
 
-    // MARK: - Message Listening
+    // MARK: - Message Handling
 
-    private func listenForMessages() async {
-        guard let client = client, let keys = keys else { return }
+    private func handleIncomingEvent(_ event: Event) {
+        guard let keys = keys else { return }
 
-        for await notification in client.notifications() {
-            switch notification {
-            case .event(let relayUrl, let event):
-                if event.kind() == .encryptedDirectMessage {
-                    do {
-                        let content = try nip04Decrypt(
-                            secretKey: keys.secretKey(),
-                            publicKey: event.author(),
-                            encryptedContent: event.content()
-                        )
-                        let senderNpub = (try? event.author().toBech32()) ?? "unknown"
-                        let msg = ChatMessage(
-                            id: event.id().toHex(),
-                            content: content,
-                            senderNpub: senderNpub,
-                            isFromMe: false,
-                            timestamp: Date(timeIntervalSince1970: TimeInterval(event.createdAt().asSecs()))
-                        )
+        let eventKind = event.kind().asU16()
+        guard eventKind == 4 else { return } // NIP-04 encrypted DM
 
-                        await MainActor.run {
-                            if self.messages[senderNpub] == nil {
-                                self.messages[senderNpub] = []
-                            }
-                            self.messages[senderNpub]?.append(msg)
+        do {
+            let content = try nip04Decrypt(
+                secretKey: keys.secretKey(),
+                publicKey: event.author(),
+                encryptedContent: event.content()
+            )
+            let senderNpub = (try? event.author().toBech32()) ?? "unknown"
+            let msg = ChatMessage(
+                id: event.id().toHex(),
+                content: content,
+                senderNpub: senderNpub,
+                isFromMe: false,
+                timestamp: Date(timeIntervalSince1970: TimeInterval(event.createdAt().asSecs()))
+            )
 
-                            // Auto-add as agent contact if not already known
-                            if !self.agents.contains(where: { $0.npub == senderNpub }) {
-                                self.agents.append(AgentContact(
-                                    npub: senderNpub,
-                                    name: "Agent \(senderNpub.prefix(12))...",
-                                    isAgent: true
-                                ))
-                            }
-                        }
-                    } catch {
-                        print("Decrypt error: \(error)")
-                    }
-                }
-            case .shutdown:
-                await MainActor.run { self.isConnected = false }
-            default:
-                break
+            if self.messages[senderNpub] == nil {
+                self.messages[senderNpub] = []
             }
+            self.messages[senderNpub]?.append(msg)
+
+            // Auto-add as agent contact if not already known
+            if !self.agents.contains(where: { $0.npub == senderNpub }) {
+                self.agents.append(AgentContact(
+                    npub: senderNpub,
+                    name: "Agent \(senderNpub.prefix(12))...",
+                    isAgent: true
+                ))
+            }
+        } catch {
+            print("Decrypt error: \(error)")
         }
     }
 
@@ -137,12 +153,13 @@ class NostrService: ObservableObject {
                 content: content
             )
 
+            let dmKind = Kind(kind: 4)
             let tag = Tag.publicKey(publicKey: recipient)
-            let event = try EventBuilder(kind: .encryptedDirectMessage, content: encrypted)
-                .tag(tag: tag)
-                .sign(keys: keys)
+            let builder = EventBuilder(kind: dmKind, content: encrypted)
+                .tags(tags: [tag])
+            let event = try builder.signWithKeys(keys: keys)
 
-            try await client.sendEvent(event: event)
+            _ = try await client.sendEvent(event: event)
 
             let msg = ChatMessage(
                 id: UUID().uuidString,

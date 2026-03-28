@@ -5,7 +5,7 @@ let package = Package(
     name: "Sigil",
     platforms: [.iOS(.v18), .macOS(.v15)],
     dependencies: [
-        .package(url: "https://github.com/rust-nostr/nostr-sdk-swift.git", from: "0.39.0"),
+        .package(url: "https://github.com/rust-nostr/nostr-sdk-swift.git", from: "0.44.0"),
     ],
     targets: [
         .executableTarget(

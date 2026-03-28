@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 import AVFoundation
 
 struct QRScannerView: View {
@@ -94,12 +95,12 @@ protocol QRScannerDelegate: AnyObject {
     func didScanCode(_ code: String)
 }
 
-class QRScannerController: UIViewController, AVCaptureMetadataOutputObjectsDelegate {
+class QRScannerController: UIViewController, @preconcurrency AVCaptureMetadataOutputObjectsDelegate {
     weak var delegate: QRScannerDelegate?
     private var captureSession: AVCaptureSession?
     private var hasScanned = false
 
-    override func viewDidLoad() {
+    nonisolated override func viewDidLoad() {
         super.viewDidLoad()
 
         let session = AVCaptureSession()
@@ -124,7 +125,7 @@ class QRScannerController: UIViewController, AVCaptureMetadataOutputObjectsDeleg
         }
     }
 
-    func metadataOutput(_ output: AVCaptureMetadataOutput, didOutput metadataObjects: [AVMetadataObject], from connection: AVCaptureConnection) {
+    nonisolated func metadataOutput(_ output: AVCaptureMetadataOutput, didOutput metadataObjects: [AVMetadataObject], from connection: AVCaptureConnection) {
         guard !hasScanned,
               let object = metadataObjects.first as? AVMetadataMachineReadableCodeObject,
               let code = object.stringValue else { return }

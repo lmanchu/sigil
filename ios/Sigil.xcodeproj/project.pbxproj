@@ -1,0 +1,409 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 60;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		08552128130B4DDFA1370003 /* SigilApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 182D6371505F4AD6887E014C /* SigilApp.swift */; };
+		4FD74E8726DE42088D856C9B /* NostrService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 45ABA1AB766645EEADD229EF /* NostrService.swift */; };
+		27B5EBED686C4D92831A0D23 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = B963AF0AFE9E4B6CAE6E5790 /* Models.swift */; };
+		9E6D2A045E1841388CEF91A2 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B4C722971374ED6AE08B75E /* ContentView.swift */; };
+		3D0192973B8E458D9CB5A48B /* ChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2486E08566A648BB82FBBA9A /* ChatView.swift */; };
+		DDD4051CF64C43AF9C726041 /* QRScannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D2251B6C5D440C2B76FC37C /* QRScannerView.swift */; };
+		F80DD54A2DA74F7DA4782165 /* NostrSDK in Frameworks */ = {isa = PBXBuildFile; productRef = 4089EADA00CF4725AFA922DB /* NostrSDK */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		C4A9ECA959F74529AD74FAAB /* Sigil.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Sigil.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		182D6371505F4AD6887E014C /* SigilApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SigilApp.swift; sourceTree = "<group>"; };
+		45ABA1AB766645EEADD229EF /* NostrService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NostrService.swift; sourceTree = "<group>"; };
+		B963AF0AFE9E4B6CAE6E5790 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
+		3B4C722971374ED6AE08B75E /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		2486E08566A648BB82FBBA9A /* ChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatView.swift; sourceTree = "<group>"; };
+		4D2251B6C5D440C2B76FC37C /* QRScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRScannerView.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		5E4F01FEB9A449FFAD38B62E /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				F80DD54A2DA74F7DA4782165 /* NostrSDK in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		C119E724D6D64EB4A3136A9C /* Sigil */ = {
+			isa = PBXGroup;
+			children = (
+				4855C31A4719463283D8C1BF /* Sources */,
+				792DEF985EB74878A79787A6 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		4855C31A4719463283D8C1BF /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				A85F26B2B9504986A3F3C0F1 /* App */,
+				BEA14C81DB0D425F8DF39633 /* Models */,
+				75418BAE639B4AC2AA6C31E2 /* Views */,
+				8E744BA38D494134B089E25F /* Services */,
+			);
+			path = Sigil/Sources;
+			sourceTree = "<group>";
+		};
+		A85F26B2B9504986A3F3C0F1 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				182D6371505F4AD6887E014C /* SigilApp.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		BEA14C81DB0D425F8DF39633 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				B963AF0AFE9E4B6CAE6E5790 /* Models.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		75418BAE639B4AC2AA6C31E2 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				3B4C722971374ED6AE08B75E /* ContentView.swift */,
+				2486E08566A648BB82FBBA9A /* ChatView.swift */,
+				4D2251B6C5D440C2B76FC37C /* QRScannerView.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		8E744BA38D494134B089E25F /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				45ABA1AB766645EEADD229EF /* NostrService.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		792DEF985EB74878A79787A6 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				C4A9ECA959F74529AD74FAAB /* Sigil.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		16F1082E45C144EC98A5CF86 /* Sigil */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A7C8A209F2384CC5A40709F4 /* Build configuration list for PBXNativeTarget "Sigil" */;
+			buildPhases = (
+				7F23E01A2EE144D4A00233A2 /* Sources */,
+				5E4F01FEB9A449FFAD38B62E /* Frameworks */,
+				59F85CDADF1D49B2BEA893B6 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = Sigil;
+			packageProductDependencies = (
+				4089EADA00CF4725AFA922DB /* NostrSDK */,
+			);
+			productName = Sigil;
+			productReference = C4A9ECA959F74529AD74FAAB /* Sigil.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		8E171F64636D4B0D99C63FE0 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1600;
+				LastUpgradeCheck = 1600;
+				TargetAttributes = {
+					16F1082E45C144EC98A5CF86 = {
+						CreatedOnToolsVersion = 16.0;
+					};
+				};
+			};
+			buildConfigurationList = 6D082F748C0D41B991534D5A /* Build configuration list for PBXProject "Sigil" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = C119E724D6D64EB4A3136A9C /* Sigil */;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				D1BB3E04B0F74106ABFADB66 /* XCRemoteSwiftPackageReference "nostr-sdk-swift" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 792DEF985EB74878A79787A6 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				16F1082E45C144EC98A5CF86 /* Sigil */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		59F85CDADF1D49B2BEA893B6 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		7F23E01A2EE144D4A00233A2 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				08552128130B4DDFA1370003 /* SigilApp.swift in Sources */,
+				4FD74E8726DE42088D856C9B /* NostrService.swift in Sources */,
+				27B5EBED686C4D92831A0D23 /* Models.swift in Sources */,
+				9E6D2A045E1841388CEF91A2 /* ContentView.swift in Sources */,
+				3D0192973B8E458D9CB5A48B /* ChatView.swift in Sources */,
+				DDD4051CF64C43AF9C726041 /* QRScannerView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		A8159CE27F1A444098474F94 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		4557B174054F4C668DD925A9 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_VERSION = 6.0;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		D7D31634FB40484495C0D804 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = HG5RRBKA8T;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSCameraUsageDescription = "Sigil needs camera access to scan QR codes for adding agents.";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.lman.sigil;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		FFF0325EC339442A85467FB2 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = HG5RRBKA8T;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSCameraUsageDescription = "Sigil needs camera access to scan QR codes for adding agents.";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.lman.sigil;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		6D082F748C0D41B991534D5A /* Build configuration list for PBXProject "Sigil" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A8159CE27F1A444098474F94 /* Debug */,
+				4557B174054F4C668DD925A9 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A7C8A209F2384CC5A40709F4 /* Build configuration list for PBXNativeTarget "Sigil" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				D7D31634FB40484495C0D804 /* Debug */,
+				FFF0325EC339442A85467FB2 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		D1BB3E04B0F74106ABFADB66 /* XCRemoteSwiftPackageReference "nostr-sdk-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/rust-nostr/nostr-sdk-swift.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.44.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		4089EADA00CF4725AFA922DB /* NostrSDK */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = D1BB3E04B0F74106ABFADB66 /* XCRemoteSwiftPackageReference "nostr-sdk-swift" */;
+			productName = NostrSDK;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 8E171F64636D4B0D99C63FE0 /* Project object */;
+}
