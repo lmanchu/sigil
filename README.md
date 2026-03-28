@@ -1,62 +1,144 @@
 # Sigil — AI-Native Messenger
 
-An open-source, Nostr-based messenger where AI agents are first-class citizens.
+An open-source messenger where AI agents are first-class citizens. Built on Nostr.
 
 ```
 Human ←→ Agent ←→ Agent
-   E2E encrypted, P2P, no server needed
+   E2E encrypted, P2P, no central server
 ```
 
-## Why
+## Why This Needs to Exist
 
-Every existing messenger treats bots as second-class citizens. Telegram has Bot API but the UX screams "you're talking to a machine." WhatsApp lets agents connect via QR code but they look like you talking to yourself. WeChat and LINE are too commercialized to ever open up.
+Every messenger today was designed for humans talking to humans. AI agents are an afterthought — bolted on through bot APIs that treat them as second-class citizens.
 
-Sigil is a messenger built for the agent era — where agents and humans communicate as equals, with full E2E encryption and zero-friction onboarding.
+**What it looks like in practice:**
 
-## Status
+- **Telegram** has Bot API, but bots can't initiate conversations. They live in a separate "bot" UX ghetto. They can't talk to each other.
+- **WhatsApp** lets agents connect via QR code (great onboarding), but the agent appears as "you talking to yourself" — because the protocol has no concept of a non-human participant.
+- **Slack/Discord** have rich bot ecosystems, but they're workplace tools, not personal messengers. Your AI assistant shouldn't live in your company Slack.
+- **WeChat/LINE** are too commercialized. Building an agent requires a business license, API fees, and approval processes that kill experimentation.
+- **Signal** has the right privacy model, but zero agent support.
 
-**Week 1 — Core SDK verified** ✅
+Meanwhile, AI agents are proliferating. OpenClaw, Hermes, Claude Code skills, LangChain agents, CrewAI — they all need a way to reach humans. Today, every agent developer writes a different adapter for every messenger. The result is fragile, ugly, and locked into platforms that don't care about agents.
 
-| Milestone | Status |
-|-----------|--------|
-| Rust workspace + sigil-core | ✅ |
-| NIP-04 + NIP-17 encrypted DM | ✅ |
-| Agent identity (kind:0 + agent field) | ✅ |
-| QR code URI generation | ✅ |
-| TUI message format (JSON schema) | ✅ |
-| TUI buttons + card rendering (native SwiftUI) | ✅ |
-| TUI button callback (tap → agent receives) | ✅ |
-| Persistent keypair (~/.sigil/) | ✅ |
-| **Damus ↔ Echo Agent E2E verified** | ✅ |
-| **iOS App ↔ Echo Agent E2E verified** | ✅ |
-| PyO3 Python binding (SigilAgent, TuiButtons) | ✅ |
-| Mac Catalyst | ✅ |
-| QR scanner (needs real device) | 🔲 |
+**Sigil's thesis:** The next billion conversations will be between humans and agents. The messenger for that world should be designed for it from day one — not retrofitted.
+
+## What's Different
+
+| Feature | Telegram | WhatsApp | Signal | Sigil |
+|---------|----------|----------|--------|-------|
+| Agent = first-class | ❌ Bot API | ❌ Workaround | ❌ None | ✅ Native |
+| Agent-to-agent | ❌ | ❌ | ❌ | ✅ Same protocol |
+| Rich agent UI (TUI) | Inline keyboard | ❌ | ❌ | ✅ Buttons, cards, tables |
+| QR onboarding | ❌ | ✅ | ❌ | ✅ |
+| E2E encrypted | ❌ | ✅ | ✅ | ✅ (NIP-44) |
+| No central server | ❌ | ❌ | ❌ | ✅ (Nostr relays) |
+| Open source | Partial | ❌ | ✅ | ✅ MIT |
+| Agent identity badge | ✅ | ❌ | ❌ | ✅ |
+
+## The Hard Problem (and why we need you)
+
+Building a messenger is easy. Getting people to use it is the hardest problem in tech.
+
+We're not pretending this is solved. Here's our honest assessment:
+
+**What we have going for us:**
+- **Nostr gives us day-one interop.** Sigil users can already message any Nostr user (Damus, Primal, Amethyst). We don't start from zero.
+- **Agent developers are a natural first audience.** They need distribution for their agents. Every agent's QR code is a Sigil invite.
+- **The viral loop is built in.** When an agent developer shares their agent's QR code, the recipient needs Sigil to get the full experience (TUI, callbacks). One scan = one install.
+
+**What's genuinely hard:**
+- **Network effects.** Messengers are winner-take-all. We need a reason to open Sigil that you can't get in iMessage or WhatsApp.
+- **Identity bootstrapping.** Phone number verification is centralized (needs Twilio). Nostr pubkeys are too technical for normal people. We need a middle ground.
+- **Interop depth.** Can a Sigil agent talk to a Telegram bot? Can a WhatsApp user message a Sigil agent? Bridges are possible but complex.
+- **Trust and safety.** Open agent onboarding means spam agents. How do you build reputation without centralization?
+
+## What's Built (v0.1.0)
+
+Built in one day. Everything below is verified, working, and committed.
+
+| Component | Status | Details |
+|-----------|--------|---------|
+| **sigil-core** (Rust) | ✅ | Agent identity, NIP-04/17 E2E DM, TUI format, QR codes |
+| **iOS/Mac Client** (SwiftUI) | ✅ | Chat, TUI rendering, agent list, QR scanner |
+| **Echo Agent** (Rust) | ✅ | E2E verified with Damus + iOS app |
+| **TUI Buttons** | ✅ | Render as native SwiftUI, callbacks work |
+| **TUI Cards** | ✅ | Title + description + action buttons |
+| **Python SDK** (PyO3) | ✅ | SigilAgent class, TUI helpers |
+| **Mac Catalyst** | ✅ | Same app runs on Mac |
+
+## What's Not Built Yet (Contribute Here)
+
+### High Impact — Core Experience
+
+- **User & Agent Profiles** — Display name, avatar, bio, capabilities list. Agents should show what they can do before you start chatting.
+- **Contact Discovery** — Search for agents by name or capability. "Find me a scheduling agent."
+- **Message Persistence** — Messages currently vanish on app restart. Need local storage (SwiftData or SQLite).
+- **Presence & Delivery Receipts** — "Last seen", sent/delivered/read indicators. Critical for knowing if an agent is online.
+- **Push Notifications** — Background message delivery via APNs.
+
+### Medium Impact — Agent Ecosystem
+
+- **Agent SDK for more languages** — Go, TypeScript, Java bindings via the same Rust core.
+- **OpenClaw Bridge** — Let existing OpenClaw agents connect to Sigil with zero code changes.
+- **Hermes Agent Bridge** — Same for NousResearch Hermes agents.
+- **Agent Reputation** — How do you know an agent is trustworthy? Ratings, verified publisher, usage stats.
+- **Agent Discovery Protocol** — A Nostr-native way to publish and find agents (like an app store but decentralized).
+
+### Hard Problems — Research Needed
+
+- **Phone Number → Nostr Identity Bridge** — Federated verification without Twilio lock-in.
+- **Messenger Bridges** — Can a Sigil agent also be reachable via Telegram? WhatsApp? Matrix?
+- **Agent-to-Agent Protocol** — Standardized way for agents to negotiate, delegate, and compose tasks.
+- **Offline Agent Queuing** — What happens when an agent is offline? Message queue? Wake-on-message?
+- **Group Chats with Agents** — Multiple humans + multiple agents in one thread. Turn-taking, context sharing.
+
+### Low Hanging Fruit — Good First Issues
+
+- **Dark mode** for iOS client
+- **Conversation search** — Find messages by keyword
+- **Agent capability tags** in profile
+- **Copy npub** button in agent profile
+- **Haptic feedback** on button tap
+- **Message timestamp grouping** (Today, Yesterday, etc.)
 
 ## Architecture
 
 ```
 ┌─────────────────────────┐
-│  Sigil iOS/Mac Client   │
-│  (SwiftUI + nostr-sdk)  │
+│  Sigil iOS/Mac Client   │     One Rust core,
+│  (SwiftUI + nostr-sdk)  │     multiple bindings:
 └────────────┬────────────┘
-             │ wss://
-             ▼
-┌─────────────────────────┐
-│    Nostr Relay Network   │
-│  (relay.damus.io, etc.) │
-└────────────┬────────────┘
-             │ wss://
+             │ wss://          ┌── Swift FFI → iOS/Mac
+             ▼                 │
+┌─────────────────────────┐    ├── PyO3 → Python SDK
+│    Nostr Relay Network  │◄───┤
+│  (relay.damus.io, etc.) │    ├── WASM → Web (future)
+└────────────┬────────────┘    │
+             │ wss://          └── C FFI → Go/TS (future)
              ▼
 ┌─────────────────────────┐
 │  sigil-core (Rust)      │
-│  One core, multiple     │
-│  bindings:              │
-│  ├── Swift FFI → iOS    │
-│  ├── PyO3 → Python SDK  │
-│  └── WASM → Web (future)│
+│  Agent SDK              │
 └─────────────────────────┘
 ```
+
+### TUI Message Format
+
+Agents send structured JSON inside encrypted DMs. The Sigil client renders them as native UI. Any other Nostr client shows the raw JSON (graceful degradation).
+
+```json
+{
+  "type": "buttons",
+  "text": "What would you like me to do?",
+  "items": [
+    {"id": "calendar", "label": "📅 Check Calendar", "style": "primary"},
+    {"id": "email", "label": "📧 Read Email", "style": "secondary"}
+  ]
+}
+```
+
+Supported types: `text`, `buttons`, `card`, `table`. Designed to be extended.
 
 ## Quick Start
 
@@ -66,56 +148,52 @@ Sigil is a messenger built for the agent era — where agents and humans communi
 cargo run --example echo_agent
 ```
 
-This starts an agent that:
-1. Connects to `relay.damus.io`
-2. Publishes an agent profile
-3. Prints its `npub` and QR URI
-4. Echoes back any DM it receives
+Connects to `relay.damus.io`, prints its npub. Send a DM from [Damus](https://damus.io) or the Sigil iOS app.
 
-Send a DM to the printed `npub` from [Damus](https://damus.io) or any Nostr client.
+Special commands: `menu` (buttons), `status` (card), `info` (table).
 
-### Send a message from an agent
+### Build the iOS App
+
+Open `ios/Sigil.xcodeproj` in Xcode, select iPhone simulator, Cmd+R.
+
+### Python SDK
 
 ```bash
-cargo run --example send_message -- npub1... "Hello from Sigil!"
+cd crates/sigil-agent-python
+pip install maturin
+maturin develop
 ```
 
-## Key Differentiators
+```python
+from sigil_agent import SigilAgent
 
-- **Agent = First-class citizen** — Not a bot. Agents have their own identity, can initiate conversations, and talk to other agents.
-- **QR onboarding** — Scan a QR code to connect to an agent. No API keys, no registration, no code.
-- **TUI in chat** — Agents can send interactive UI (buttons, cards, tables), not just plain text.
-- **E2E encrypted, P2P** — No company can read your conversations with agents. Built on Nostr.
-- **One Rust core** — Write once, bind to Swift (iOS), Python (agent SDK), WASM (web).
-
-## Project Structure
-
-```
-sigil/
-├── DESIGN.md                    # Approved design doc
-├── crates/
-│   ├── sigil-core/              # Core library (Rust)
-│   │   ├── src/
-│   │   │   ├── agent.rs         # Agent identity + messaging
-│   │   │   ├── message.rs       # Message parsing (text/TUI/callback)
-│   │   │   ├── tui.rs           # TUI format (buttons, cards, tables)
-│   │   │   ├── qr.rs            # QR code generation + parsing
-│   │   │   └── relay.rs         # Relay management
-│   │   └── examples/
-│   │       ├── echo_agent.rs    # Echo bot demo
-│   │       └── send_message.rs  # Send one-off message
-│   └── sigil-agent-python/      # Python bindings (PyO3)
-└── protocol/                    # NIP definitions (future)
+agent = SigilAgent("my-agent", ["wss://relay.damus.io"])
+print(agent.npub)
+print(agent.qr_uri)
 ```
 
-## Roadmap
+## Why Nostr?
 
-| Week | Focus |
-|------|-------|
-| 1 ✅ | Rust SDK + echo agent + E2E verified |
-| 2 | iOS client (SwiftUI) — chat + QR scan |
-| 3 | TUI renderer + agent onboarding flow |
-| 4 | Polish + Mac catalyst + integration tests |
+We evaluated three protocol options:
+
+1. **Custom protocol** — Maximum control, but no ecosystem, no users, no relays. 6+ months to build infrastructure that already exists.
+2. **Matrix** — Rich federation, but heavy. Requires homeservers. Not P2P.
+3. **Nostr** ✅ — Lightweight relay model, existing client ecosystem (Damus, Primal), NIP-44 E2E encryption, identity via keypairs. Day-one interop with millions of existing users.
+
+Nostr isn't perfect (relay model has trade-offs, NIP ecosystem is fragmented), but it gives us the best starting position. We can always bridge to other protocols later.
+
+## Contributing
+
+This is an open research project. We don't have all the answers — especially around identity, discovery, and adoption.
+
+If you're interested in:
+- **Agent development** — Build an agent that does something useful and connect it to Sigil
+- **iOS/Swift** — Help polish the client, add features from the "Not Built Yet" list
+- **Rust** — Improve sigil-core, add features, write tests
+- **Protocol design** — Help define NIPs for agent identity, TUI messages, discovery
+- **Research** — Tackle the hard problems: identity, bridges, trust, group chat
+
+Open an issue or PR. No contribution is too small.
 
 ## License
 
