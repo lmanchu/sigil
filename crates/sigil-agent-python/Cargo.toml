@@ -10,5 +10,6 @@ crate-type = ["cdylib"]
 
 [dependencies]
 sigil-core = { path = "../sigil-core" }
+nostr-sdk = { version = "0.39", features = ["all-nips"] }
 pyo3 = { version = "0.23", features = ["extension-module"] }
 tokio = { version = "1", features = ["full"] }
