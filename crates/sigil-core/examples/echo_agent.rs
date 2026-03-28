@@ -39,7 +39,19 @@ async fn main() {
 
     agent.on_message(|msg, sender| {
         println!("📨 From {}: {}", sender.to_bech32().unwrap_or_default(), msg);
-        Some(format!("🔁 Echo: {}", msg))
+        let lower = msg.to_lowercase();
+        if lower.contains("menu") || lower.contains("help") {
+            // Reply with TUI buttons
+            Some(r#"{"type":"buttons","text":"What would you like me to do?","items":[{"id":"calendar","label":"📅 Check Calendar","style":"primary"},{"id":"email","label":"📧 Read Email","style":"secondary"},{"id":"tasks","label":"✅ Show Tasks","style":"secondary"}]}"#.to_string())
+        } else if lower.contains("status") {
+            // Reply with TUI card
+            Some(r#"{"type":"card","title":"Sigil Agent Status","description":"Your AI-Native Messenger agent is online and ready. Connected to relay.damus.io with E2E encryption.","actions":[{"id":"details","label":"View Details","style":"primary"}]}"#.to_string())
+        } else if lower.contains("info") {
+            // Reply with TUI table
+            Some(r#"{"type":"table","title":"System Info","rows":[["Protocol","Nostr NIP-04"],["Relay","relay.damus.io"],["Encryption","E2E"],["Status","Online ✅"]]}"#.to_string())
+        } else {
+            Some(format!("🔁 Echo: {}", msg))
+        }
     });
 
     // Print onboarding info
