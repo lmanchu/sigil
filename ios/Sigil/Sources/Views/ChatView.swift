@@ -70,7 +70,7 @@ struct ChatView: View {
             .padding(.vertical, 8)
             .background(SigilTheme.adaptiveCard)
         }
-        .navigationTitle(agent.name)
+        .navigationTitle(agent.displayName)
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
         #endif

@@ -1,4 +1,5 @@
 import SwiftUI
+import PhotosUI
 #if canImport(UIKit)
 import UIKit
 #elseif canImport(AppKit)
@@ -12,25 +13,49 @@ struct AgentProfileView: View {
     @State private var editName = ""
     @State private var editCodename = ""
     @State private var editAbout = ""
+    @State private var selectedPhoto: PhotosPickerItem?
 
     var body: some View {
         List {
             // Header
             Section {
                 VStack(spacing: 16) {
-                    // Avatar
-                    ZStack {
-                        Circle()
-                            .fill(
-                                agent.isAgent
-                                    ? SigilTheme.agentAccent.opacity(0.12)
-                                    : SigilTheme.accent.opacity(0.1)
-                            )
-                            .frame(width: 88, height: 88)
+                    // Avatar with photo picker
+                    PhotosPicker(selection: $selectedPhoto, matching: .images) {
+                        ZStack {
+                            #if canImport(UIKit)
+                            if let data = agent.avatarData, let uiImage = UIImage(data: data) {
+                                Image(uiImage: uiImage)
+                                    .resizable()
+                                    .scaledToFill()
+                                    .frame(width: 88, height: 88)
+                                    .clipShape(Circle())
+                            } else {
+                                defaultAvatarLarge
+                            }
+                            #else
+                            defaultAvatarLarge
+                            #endif
 
-                        Image(systemName: agent.isAgent ? "cpu" : "person.fill")
-                            .font(.system(size: 36))
-                            .foregroundStyle(agent.isAgent ? SigilTheme.agentAccent : SigilTheme.accent)
+                            // Camera badge
+                            Circle()
+                                .fill(SigilTheme.agentAccent)
+                                .frame(width: 26, height: 26)
+                                .overlay(
+                                    Image(systemName: "camera.fill")
+                                        .font(.system(size: 11))
+                                        .foregroundStyle(.white)
+                                )
+                                .offset(x: 32, y: 32)
+                        }
+                    }
+                    .onChange(of: selectedPhoto) { _, item in
+                        Task {
+                            if let data = try? await item?.loadTransferable(type: Data.self) {
+                                agent.avatarData = data
+                                nostrService.saveContact(agent)
+                            }
+                        }
                     }
 
                     VStack(spacing: 6) {
@@ -194,6 +219,21 @@ struct AgentProfileView: View {
                     }
                 }
             }
+        }
+    }
+
+    private var defaultAvatarLarge: some View {
+        ZStack {
+            Circle()
+                .fill(
+                    agent.isAgent
+                        ? SigilTheme.agentAccent.opacity(0.12)
+                        : SigilTheme.accent.opacity(0.1)
+                )
+                .frame(width: 88, height: 88)
+            Image(systemName: agent.isAgent ? "cpu" : "person.fill")
+                .font(.system(size: 36))
+                .foregroundStyle(agent.isAgent ? SigilTheme.agentAccent : SigilTheme.accent)
         }
     }
 }
