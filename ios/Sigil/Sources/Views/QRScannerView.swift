@@ -1,4 +1,6 @@
 import SwiftUI
+
+#if canImport(UIKit) && !os(macOS)
 import UIKit
 import AVFoundation
 
@@ -135,3 +137,55 @@ class QRScannerController: UIViewController, @preconcurrency AVCaptureMetadataOu
         delegate?.didScanCode(code)
     }
 }
+
+#else
+
+// macOS fallback — paste URI instead of camera
+struct QRScannerView: View {
+    @EnvironmentObject var nostrService: NostrService
+    @Environment(\.dismiss) private var dismiss
+    @State private var uriInput = ""
+    @State private var showError = false
+
+    var body: some View {
+        VStack(spacing: 20) {
+            Image(systemName: "qrcode.viewfinder")
+                .font(.system(size: 60))
+                .foregroundStyle(.secondary)
+
+            Text("Add Agent")
+                .font(.title2)
+                .fontWeight(.semibold)
+
+            Text("Paste a sigil:// URI to add an agent")
+                .foregroundStyle(.secondary)
+
+            TextField("sigil://agent?npub=...", text: $uriInput)
+                .textFieldStyle(.roundedBorder)
+                .padding(.horizontal, 40)
+
+            HStack(spacing: 16) {
+                Button("Cancel") { dismiss() }
+                    .keyboardShortcut(.cancelAction)
+
+                Button("Add") {
+                    if nostrService.addAgentFromQR(uriInput.trimmingCharacters(in: .whitespacesAndNewlines)) {
+                        dismiss()
+                    } else {
+                        showError = true
+                    }
+                }
+                .keyboardShortcut(.defaultAction)
+                .disabled(uriInput.isEmpty)
+            }
+        }
+        .padding(40)
+        .alert("Invalid URI", isPresented: $showError) {
+            Button("OK") {}
+        } message: {
+            Text("Not a valid sigil:// agent URI.")
+        }
+    }
+}
+
+#endif

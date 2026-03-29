@@ -1,5 +1,9 @@
 import SwiftUI
+#if canImport(UIKit)
 import UIKit
+#elseif canImport(AppKit)
+import AppKit
+#endif
 
 struct AgentProfileView: View {
     let agent: AgentContact
@@ -84,7 +88,12 @@ struct AgentProfileView: View {
             // Actions
             Section {
                 Button {
+                    #if canImport(UIKit)
                     UIPasteboard.general.string = agent.npub
+                    #elseif canImport(AppKit)
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(agent.npub, forType: .string)
+                    #endif
                 } label: {
                     Label("Copy npub", systemImage: "doc.on.doc")
                 }
@@ -99,6 +108,8 @@ struct AgentProfileView: View {
             }
         }
         .navigationTitle("Profile")
+        #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
+        #endif
     }
 }

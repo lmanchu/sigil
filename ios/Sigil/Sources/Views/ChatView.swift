@@ -48,7 +48,7 @@ struct ChatView: View {
                     .focused($isInputFocused)
                     .lineLimit(1...4)
                     .padding(10)
-                    .background(Color(.systemGray6))
+                    .background(Color.secondary.opacity(0.15))
                     .clipShape(RoundedRectangle(cornerRadius: 20))
 
                 Button {
@@ -64,9 +64,11 @@ struct ChatView: View {
             .padding(.vertical, 8)
         }
         .navigationTitle(agent.name)
+        #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
+        #endif
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
+            ToolbarItem(placement: .automatic) {
                 NavigationLink(destination: AgentProfileView(agent: agent)) {
                     HStack(spacing: 4) {
                         if agent.isAgent {
@@ -114,7 +116,7 @@ struct MessageBubble: View {
                     Text(message.content)
                         .padding(.horizontal, 14)
                         .padding(.vertical, 10)
-                        .background(message.isFromMe ? Color.blue : Color(.systemGray5))
+                        .background(message.isFromMe ? Color.blue : Color.secondary.opacity(0.2))
                         .foregroundStyle(message.isFromMe ? .white : .primary)
                         .clipShape(RoundedRectangle(cornerRadius: 18))
                 }
@@ -160,7 +162,7 @@ struct TuiMessageView: View {
             }
         }
         .padding(12)
-        .background(Color(.systemGray6))
+        .background(Color.secondary.opacity(0.15))
         .clipShape(RoundedRectangle(cornerRadius: 14))
     }
 

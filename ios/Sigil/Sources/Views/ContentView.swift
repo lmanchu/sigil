@@ -17,8 +17,11 @@ struct ContentView: View {
             }
             .navigationTitle("Sigil")
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: .automatic) {
                     HStack(spacing: 12) {
+                        Circle()
+                            .fill(nostrService.isConnected ? .green : .red)
+                            .frame(width: 8, height: 8)
                         Button {
                             showAddContact = true
                         } label: {
@@ -30,11 +33,6 @@ struct ContentView: View {
                             Image(systemName: "qrcode.viewfinder")
                         }
                     }
-                }
-                ToolbarItem(placement: .topBarLeading) {
-                    Circle()
-                        .fill(nostrService.isConnected ? .green : .red)
-                        .frame(width: 8, height: 8)
                 }
             }
             .sheet(isPresented: $showQRScanner) {
