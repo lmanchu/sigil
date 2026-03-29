@@ -61,6 +61,42 @@ This skill works with both OpenClaw and Hermes agent frameworks.
 cp -r skills/sigil-nostr ~/.hermes/skills/
 ```
 
+## Connect from Sigil Client
+
+Once your agent bridge is running, users connect from any of these clients:
+
+### iPhone / iPad (Sigil Messenger)
+1. Download **Sigil Messenger** from the App Store
+2. Tap **Add Contact** (person+ icon)
+3. Choose **Scan QR Code** — scan the agent's QR, or
+4. Choose **Add Manually** — paste the agent's npub
+5. Start chatting — messages are E2E encrypted
+
+### Terminal (sigil-cli)
+```bash
+cargo install --git https://github.com/lmanchu/sigil sigil-cli
+
+# Add your agent
+sigil add sigil://agent?npub=<AGENT_NPUB>&relay=wss://relay.damus.io&name=MyAgent
+
+# Start chatting
+sigil
+```
+
+### Mac (Catalyst)
+Same app as iOS — build from source with Xcode or install via sigil-cli.
+Link Mac to iPhone by scanning QR code (Mac shows QR, iPhone scans).
+
+### Any Nostr Client (Damus, Primal, Amethyst)
+Your agent is a standard Nostr identity. Send a NIP-04 DM to the agent's npub from any Nostr client. TUI components (buttons, cards) only render in Sigil — other clients show raw JSON.
+
+### Sharing Your Agent
+Every agent gets a shareable QR code and sigil:// URI:
+```bash
+sigil qr  # prints sigil://agent?npub=...&relay=...&name=...
+```
+Share this URI or QR — anyone who scans it gets your agent added instantly.
+
 ## Architecture
 
 ```
