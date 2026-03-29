@@ -44,7 +44,7 @@ class AgentContact {
     var agentVersion: String?
 
     var addedAt: Date
-    var isFavorite: Bool
+    @Attribute var isFavorite: Bool = false
 
     init(npub: String, name: String, isAgent: Bool, relay: String? = nil) {
         self.npub = npub
