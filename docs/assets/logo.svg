@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <defs>
+    <linearGradient id="glow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#00E5FF;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#B388FF;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <!-- Outer circle — the seal -->
+  <circle cx="256" cy="256" r="240" stroke="url(#glow)" stroke-width="4" fill="none" opacity="0.3"/>
+  <circle cx="256" cy="256" r="200" stroke="url(#glow)" stroke-width="2" fill="none" opacity="0.15"/>
+  <!-- Inner sigil mark — two speech bubbles intersecting -->
+  <!-- Left bubble (human) -->
+  <path d="M160 200 Q160 160 200 160 L280 160 Q320 160 320 200 L320 260 Q320 300 280 300 L240 300 L200 340 L200 300 L200 300 Q160 300 160 260 Z"
+    fill="#00E5FF" opacity="0.2" stroke="#00E5FF" stroke-width="2.5"/>
+  <!-- Right bubble (agent) — offset, overlapping -->
+  <path d="M192 210 Q192 170 232 170 L312 170 Q352 170 352 210 L352 270 Q352 310 312 310 L272 310 L312 350 L272 310 L232 310 Q192 310 192 270 Z"
+    fill="#B388FF" opacity="0.2" stroke="#B388FF" stroke-width="2.5"/>
+  <!-- Center intersection dot -->
+  <circle cx="256" cy="240" r="12" fill="url(#glow)"/>
+  <!-- Connection lines radiating from center -->
+  <line x1="256" y1="228" x2="256" y2="180" stroke="url(#glow)" stroke-width="1.5" opacity="0.4"/>
+  <line x1="268" y1="240" x2="310" y2="240" stroke="url(#glow)" stroke-width="1.5" opacity="0.4"/>
+  <line x1="244" y1="240" x2="202" y2="240" stroke="url(#glow)" stroke-width="1.5" opacity="0.4"/>
+  <line x1="256" y1="252" x2="256" y2="295" stroke="url(#glow)" stroke-width="1.5" opacity="0.4"/>
+  <!-- Text -->
+  <text x="256" y="420" text-anchor="middle" font-family="SF Mono, Menlo, monospace" font-size="48" font-weight="600" fill="#F1F5F9" letter-spacing="8">SIGIL</text>
+  <text x="256" y="450" text-anchor="middle" font-family="SF Mono, Menlo, monospace" font-size="14" fill="#64748B" letter-spacing="4">AI-NATIVE MESSENGER</text>
+</svg>

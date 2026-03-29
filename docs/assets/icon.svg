@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0A0E17;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#111827;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#00E5FF;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#B388FF;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <!-- Background -->
+  <rect width="1024" height="1024" rx="224" fill="url(#bg)"/>
+  <!-- Outer ring -->
+  <circle cx="512" cy="512" r="380" stroke="url(#accent)" stroke-width="6" fill="none" opacity="0.2"/>
+  <!-- Left bubble (human - cyan) -->
+  <path d="M300 400 Q300 320 380 320 L580 320 Q660 320 660 400 L660 540 Q660 620 580 620 L480 620 L400 700 L400 620 Q300 620 300 540 Z"
+    fill="#00E5FF" opacity="0.15" stroke="#00E5FF" stroke-width="4"/>
+  <!-- Right bubble (agent - violet) -->
+  <path d="M364 420 Q364 340 444 340 L644 340 Q724 340 724 420 L724 560 Q724 640 644 640 L544 640 L624 720 L544 640 Q364 640 364 560 Z"
+    fill="#B388FF" opacity="0.15" stroke="#B388FF" stroke-width="4"/>
+  <!-- Center node -->
+  <circle cx="512" cy="480" r="24" fill="url(#accent)"/>
+  <!-- Radial lines -->
+  <line x1="512" y1="456" x2="512" y2="360" stroke="url(#accent)" stroke-width="3" opacity="0.4"/>
+  <line x1="536" y1="480" x2="640" y2="480" stroke="url(#accent)" stroke-width="3" opacity="0.4"/>
+  <line x1="488" y1="480" x2="384" y2="480" stroke="url(#accent)" stroke-width="3" opacity="0.4"/>
+  <line x1="512" y1="504" x2="512" y2="600" stroke="url(#accent)" stroke-width="3" opacity="0.4"/>
+</svg>
