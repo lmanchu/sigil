@@ -2,21 +2,6 @@ import Foundation
 import SwiftData
 import NostrSDK
 
-/// Notification handler bridging nostr-sdk-swift to NostrService
-final class NotificationHandler: HandleNotification, @unchecked Sendable {
-    private let onEvent: @Sendable (RelayUrl, String, Event) -> Void
-
-    init(onEvent: @escaping @Sendable (RelayUrl, String, Event) -> Void) {
-        self.onEvent = onEvent
-    }
-
-    func handleMsg(relayUrl: RelayUrl, msg: RelayMessage) async {}
-
-    func handle(relayUrl: RelayUrl, subscriptionId: String, event: Event) async {
-        onEvent(relayUrl, subscriptionId, event)
-    }
-}
-
 /// Core Nostr service — manages keys, relay connections, messaging, and persistence
 @MainActor
 class NostrService: ObservableObject {
@@ -28,6 +13,7 @@ class NostrService: ObservableObject {
 
     private var client: Client?
     private var keys: Keys?
+    private var signer: NostrSigner?
     private var modelContainer: ModelContainer?
     private var modelContext: ModelContext?
 
@@ -54,13 +40,11 @@ class NostrService: ObservableObject {
     private func loadFromStore() {
         guard let context = modelContext else { return }
 
-        // Load agents
         let agentDescriptor = FetchDescriptor<AgentContact>(sortBy: [SortDescriptor(\.addedAt)])
         if let stored = try? context.fetch(agentDescriptor) {
             self.agents = stored
         }
 
-        // Load messages grouped by contact
         let msgDescriptor = FetchDescriptor<ChatMessage>(sortBy: [SortDescriptor(\.timestamp)])
         if let stored = try? context.fetch(msgDescriptor) {
             for msg in stored {
@@ -103,6 +87,10 @@ class NostrService: ObservableObject {
                 try? sk.write(to: keyFile, atomically: true, encoding: .utf8)
             }
         }
+
+        if let keys = keys {
+            signer = NostrSigner.keys(keys: keys)
+        }
     }
 
     private static func keyFilePath() -> URL {
@@ -115,10 +103,9 @@ class NostrService: ObservableObject {
     // MARK: - Connection
 
     func connect() async {
-        guard let keys = keys else { return }
+        guard let keys = keys, let signer = signer else { return }
 
         do {
-            let signer = NostrSigner.keys(keys: keys)
             let client = ClientBuilder().signer(signer: signer).build()
             let relayUrl = try RelayUrl.parse(url: "wss://relay.damus.io")
             _ = try await client.addRelay(url: relayUrl)
@@ -127,19 +114,26 @@ class NostrService: ObservableObject {
             self.client = client
             self.isConnected = true
 
-            let dmKind = Kind(kind: 4)
-            let filter = Filter()
-                .kind(kind: dmKind)
+            // Subscribe to NIP-04 DMs
+            let dmFilter = Filter()
+                .kind(kind: Kind(kind: 4))
                 .pubkey(pubkey: keys.publicKey())
 
-            _ = try await client.subscribe(filter: filter, opts: nil)
+            _ = try await client.subscribe(filter: dmFilter, opts: nil)
 
-            let handler = NotificationHandler { [weak self] relayUrl, subscriptionId, event in
-                Task { @MainActor in
-                    self?.handleIncomingEvent(event)
+            // Listen for events
+            Task {
+                do {
+                    let handler = NotificationHandler { [weak self] _, _, event in
+                        Task { @MainActor in
+                            await self?.handleIncomingEvent(event)
+                        }
+                    }
+                    try await client.handleNotifications(handler: handler)
+                } catch {
+                    print("Notification handler error: \(error)")
                 }
             }
-            try await client.handleNotifications(handler: handler)
         } catch {
             print("Connection error: \(error)")
         }
@@ -147,26 +141,24 @@ class NostrService: ObservableObject {
 
     // MARK: - Message Handling
 
-    private func handleIncomingEvent(_ event: Event) {
-        guard let keys = keys else { return }
+    private func handleIncomingEvent(_ event: Event) async {
+        guard let signer = signer else { return }
 
         let eventKind = event.kind().asU16()
         guard eventKind == 4 else { return }
 
         let eventId = event.id().toHex()
 
-        // Dedup — skip if already stored
+        // Dedup
         if messages.values.flatMap({ $0 }).contains(where: { $0.messageId == eventId }) {
             return
         }
 
         do {
-            let content = try nip04Decrypt(
-                secretKey: keys.secretKey(),
-                publicKey: event.author(),
-                encryptedContent: event.content()
-            )
+            // Use signer for NIP-04 decryption (v0.44 API)
+            let content = try await signer.nip04Decrypt(publicKey: event.author(), encryptedContent: event.content())
             let senderNpub = (try? event.author().toBech32()) ?? "unknown"
+
             let msg = ChatMessage(
                 messageId: eventId,
                 content: content,
@@ -182,7 +174,7 @@ class NostrService: ObservableObject {
             self.messages[senderNpub]?.append(msg)
             saveMessage(msg)
 
-            // Auto-add as agent contact if not already known
+            // Auto-add as contact if unknown
             if !self.agents.contains(where: { $0.npub == senderNpub }) {
                 let agent = AgentContact(
                     npub: senderNpub,
@@ -200,23 +192,20 @@ class NostrService: ObservableObject {
     // MARK: - Send Message
 
     func sendMessage(to npub: String, content: String) async {
-        guard let client = client, let keys = keys else { return }
+        guard let client = client, let signer = signer else { return }
 
         do {
             let recipient = try PublicKey.parse(publicKey: npub)
-            let encrypted = try nip04Encrypt(
-                secretKey: keys.secretKey(),
-                publicKey: recipient,
-                content: content
-            )
 
-            let dmKind = Kind(kind: 4)
+            // Use signer for NIP-04 encryption (v0.44 API)
+            let encrypted = try await signer.nip04Encrypt(publicKey: recipient, content: content)
+
             let tag = Tag.publicKey(publicKey: recipient)
-            let builder = EventBuilder(kind: dmKind, content: encrypted)
+            let builder = EventBuilder(kind: Kind(kind: 4), content: encrypted)
                 .tags(tags: [tag])
-            let event = try builder.signWithKeys(keys: keys)
 
-            _ = try await client.sendEvent(event: event)
+            // Use sendEventBuilder — client signs with its signer
+            _ = try await client.sendEventBuilder(builder: builder)
 
             let msg = ChatMessage(
                 messageId: UUID().uuidString,
@@ -283,5 +272,20 @@ class NostrService: ObservableObject {
         )
         addAgent(agent)
         return true
+    }
+}
+
+/// Notification handler bridging nostr-sdk-swift to NostrService
+final class NotificationHandler: HandleNotification, @unchecked Sendable {
+    private let onEvent: @Sendable (RelayUrl, String, Event) -> Void
+
+    init(onEvent: @escaping @Sendable (RelayUrl, String, Event) -> Void) {
+        self.onEvent = onEvent
+    }
+
+    func handleMsg(relayUrl: RelayUrl, msg: RelayMessage) async {}
+
+    func handle(relayUrl: RelayUrl, subscriptionId: String, event: Event) async {
+        onEvent(relayUrl, subscriptionId, event)
     }
 }
