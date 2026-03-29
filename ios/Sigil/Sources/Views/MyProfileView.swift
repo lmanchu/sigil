@@ -9,6 +9,7 @@ struct MyProfileView: View {
     @State private var avatarImage: Image?
     @State private var avatarData: Data?
     @State private var showCopied = false
+    @State private var showQRCard = false
 
     var body: some View {
         List {
@@ -75,6 +76,26 @@ struct MyProfileView: View {
                 .padding(.vertical, 12)
             }
 
+            // My QR Code
+            Section {
+                VStack(spacing: 16) {
+                    QRCodeView(uri: myInviteUri, label: "Scan to add me on Sigil", size: 200)
+
+                    Button {
+                        showQRCard = true
+                    } label: {
+                        Label("Show Full Screen", systemImage: "arrow.up.left.and.arrow.down.right")
+                            .font(.subheadline)
+                            .foregroundStyle(SigilTheme.accent)
+                    }
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 8)
+            } header: {
+                Label("My QR Code", systemImage: "qrcode")
+                    .foregroundStyle(SigilTheme.accent)
+            }
+
             // Identity
             Section {
                 VStack(alignment: .leading, spacing: 12) {
@@ -103,7 +124,7 @@ struct MyProfileView: View {
                     .foregroundStyle(SigilTheme.accent)
             }
 
-            // QR / Invite
+            // Invite
             Section {
                 Button {
                     shareInvite()
@@ -137,6 +158,13 @@ struct MyProfileView: View {
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
         #endif
+        .sheet(isPresented: $showQRCard) {
+            QRCardView(
+                uri: myInviteUri,
+                title: displayName.isEmpty ? "Sigil User" : displayName,
+                subtitle: "Scan to add me on Sigil"
+            )
+        }
         .onAppear {
             displayName = nostrService.userDisplayName
             about = nostrService.userAbout ?? ""
@@ -149,6 +177,11 @@ struct MyProfileView: View {
                 #endif
             }
         }
+    }
+
+    private var myInviteUri: String {
+        let name = displayName.isEmpty ? "Sigil User" : displayName
+        return "sigil://user?npub=\(nostrService.npub)&name=\(name.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")"
     }
 
     private var shortNpub: String {

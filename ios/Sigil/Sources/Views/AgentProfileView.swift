@@ -97,6 +97,18 @@ struct AgentProfileView: View {
                 }
             }
 
+            // QR Code — share this agent
+            Section {
+                VStack(spacing: 12) {
+                    QRCodeView(uri: agent.inviteUri, label: "Scan to add this agent", size: 180)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 8)
+            } header: {
+                Label("Share Agent", systemImage: "qrcode")
+                    .foregroundStyle(SigilTheme.accent)
+            }
+
             // Actions
             Section {
                 Button {
