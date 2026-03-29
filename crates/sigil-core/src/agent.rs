@@ -99,10 +99,10 @@ impl SigilAgent {
         }
         client.connect().await;
 
-        // Publish agent profile (kind:0 with agent=true)
+        // Publish agent profile (kind:0 with NIP-AE ["bot"] tag + legacy agent=true)
         let metadata = Metadata::new()
             .name(&self.profile.name)
-            .custom_field("agent", serde_json::json!(true));
+            .custom_field("agent", serde_json::json!(true)); // legacy compat
 
         let metadata = match &self.profile.about {
             Some(about) => metadata.about(about),
@@ -115,6 +115,12 @@ impl SigilAgent {
         };
 
         client.set_metadata(&metadata).await?;
+
+        // Publish NIP-AE bot tag as a separate kind:0 tag
+        // NIP-AE: agents include ["bot"] in kind:0 tags
+        // Note: nostr-sdk Metadata doesn't support extra tags directly,
+        // so we keep "agent": true in content for now.
+        // Full NIP-AE compliance will require a custom kind:0 builder.
         tracing::info!("Agent '{}' connected. npub: {}", self.profile.name, self.npub());
 
         // Store client

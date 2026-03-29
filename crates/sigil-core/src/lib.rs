@@ -9,7 +9,7 @@
 //!   ├── tui.rs       — TUI message format (buttons, cards, text)
 //!   ├── qr.rs        — QR code generation for agent onboarding
 //!   ├── channel.rs   — NIP-28 public channel (group chat)
-//!   ├── registry.rs  — Agent registry (kind:31990, discovery)
+//!   ├── registry.rs  — Agent registry (NIP-AE kind:4199 + legacy kind:31990)
 //!   ├── file.rs      — File sharing (NIP-94, nostr.build upload)
 //!   ├── access.rs    — Access control (personal/service agent modes)
 //!   └── guard.rs     — Rate limiting, dedup, key encryption

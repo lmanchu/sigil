@@ -388,7 +388,7 @@ async fn cmd_register(skills: Option<&str>, relay: &str) -> Result<(), Box<dyn s
         skills: skill_list.clone(),
         tui: true,
         relay: Some(relay.to_string()),
-        version: Some("0.3.0".to_string()),
+        version: Some("0.5.0".to_string()),
     };
 
     let event_id = registry::publish_agent(&client, &keys, &entry).await?;

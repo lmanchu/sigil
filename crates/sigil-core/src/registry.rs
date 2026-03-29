@@ -1,20 +1,24 @@
-//! Agent Registry — custom addressable event for agent discovery
+//! Agent Registry — NIP-AE compatible agent definition events
 //!
-//! Uses kind:31990 (addressable range 30000-39999, replaceable by d-tag)
-//! This allows agents to publish structured profiles that can be queried
-//! without parsing kind:0 metadata JSON.
+//! Uses kind:4199 (Agent Definition) as defined in NIP-AE.
+//! Agents publish structured profiles using tags for relay-level filtering.
 //!
-//! NIP-XX (Sigil Agent Registry):
-//!   kind: 31990
-//!   d-tag: agent npub (for replaceability)
-//!   content: JSON AgentRegistryEntry
-//!   tags: ["d", npub], ["t", skill1], ["t", skill2], ...
+//! NIP-AE Agent Definition (kind:4199):
+//!   d-tag: agent slug (for replaceability)
+//!   tags: ["title", name], ["role", role], ["description", desc],
+//!         ["t", "agent"], ["t", skill1], ["framework", fw], ["ver", ver]
+//!   content: markdown description
+//!
+//! Also supports legacy kind:31990 for reading (backwards compat).
 
 use nostr_sdk::prelude::*;
 use serde::{Deserialize, Serialize};
 
-/// The kind number for Sigil Agent Registry entries
-pub const AGENT_REGISTRY_KIND: u16 = 31990;
+/// NIP-AE Agent Definition kind
+pub const AGENT_DEFINITION_KIND: u16 = 4199;
+
+/// Legacy kind (read-only backwards compat)
+pub const LEGACY_REGISTRY_KIND: u16 = 31990;
 
 /// Structured agent profile for the registry
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -40,27 +44,46 @@ pub struct AgentRegistryEntry {
     pub version: Option<String>,
 }
 
-/// Publish an agent registry entry. Replaces any existing entry for this agent.
+/// Publish an agent definition (NIP-AE kind:4199).
+/// Replaces any existing definition for this agent slug.
 pub async fn publish_agent(
     client: &Client,
     keys: &Keys,
     entry: &AgentRegistryEntry,
 ) -> Result<EventId, Error> {
-    let npub = keys.public_key().to_bech32().map_err(|e| Error::Generic(e.to_string()))?;
-    let content =
-        serde_json::to_string(entry).map_err(|e| Error::Generic(e.to_string()))?;
+    // Build markdown content from about field
+    let content = entry.about.clone().unwrap_or_default();
 
+    // NIP-AE tag structure
     let mut tags = vec![
-        Tag::identifier(&npub),
+        Tag::identifier(&entry.name.to_lowercase().replace(' ', "-")),
+        Tag::custom(TagKind::custom("title"), vec![entry.name.clone()]),
+        Tag::hashtag("agent"),
     ];
 
-    // Add skill tags for filtering
+    if let Some(about) = &entry.about {
+        Tag::custom(TagKind::custom("description"), vec![about.clone()]);
+        tags.push(Tag::custom(TagKind::custom("description"), vec![about.clone()]));
+    }
+
+    if let Some(fw) = &entry.framework {
+        tags.push(Tag::custom(TagKind::custom("framework"), vec![fw.clone()]));
+    }
+
+    if let Some(ver) = &entry.version {
+        tags.push(Tag::custom(TagKind::custom("ver"), vec![ver.clone()]));
+    }
+
+    if entry.tui {
+        tags.push(Tag::custom(TagKind::custom("tool"), vec!["tui".to_string()]));
+    }
+
+    // Add skill tags for relay-level filtering
     for skill in &entry.skills {
-        Tag::hashtag(skill);
         tags.push(Tag::hashtag(skill));
     }
 
-    let event = EventBuilder::new(Kind::Custom(AGENT_REGISTRY_KIND), content)
+    let event = EventBuilder::new(Kind::Custom(AGENT_DEFINITION_KIND), content)
         .tags(tags)
         .sign(keys)
         .await
@@ -71,14 +94,18 @@ pub async fn publish_agent(
     Ok(id)
 }
 
-/// Search the registry for agents. Optionally filter by skill tag.
+/// Search for agents. Queries both NIP-AE kind:4199 and legacy kind:31990.
 pub async fn search_agents(
     client: &Client,
     skill_filter: Option<&str>,
     limit: usize,
 ) -> Result<Vec<(PublicKey, AgentRegistryEntry)>, Error> {
+    // Query both new and legacy kinds
     let mut filter = Filter::new()
-        .kind(Kind::Custom(AGENT_REGISTRY_KIND))
+        .kinds(vec![
+            Kind::Custom(AGENT_DEFINITION_KIND),
+            Kind::Custom(LEGACY_REGISTRY_KIND),
+        ])
         .limit(limit);
 
     if let Some(skill) = skill_filter {
@@ -92,12 +119,70 @@ pub async fn search_agents(
 
     let mut agents = vec![];
     for event in events.iter() {
-        if let Ok(entry) = serde_json::from_str::<AgentRegistryEntry>(&event.content) {
-            agents.push((event.pubkey, entry));
+        if event.kind == Kind::Custom(AGENT_DEFINITION_KIND) {
+            // Parse NIP-AE format (tags-based)
+            if let Some(entry) = parse_nip_ae_event(&event) {
+                agents.push((event.pubkey, entry));
+            }
+        } else {
+            // Legacy JSON content format
+            if let Ok(entry) = serde_json::from_str::<AgentRegistryEntry>(&event.content) {
+                agents.push((event.pubkey, entry));
+            }
         }
     }
 
     Ok(agents)
+}
+
+/// Parse a NIP-AE kind:4199 event into an AgentRegistryEntry
+fn parse_nip_ae_event(event: &Event) -> Option<AgentRegistryEntry> {
+    let tags = event.tags.iter().collect::<Vec<_>>();
+
+    let name = tags.iter()
+        .find(|t| t.kind() == TagKind::custom("title"))
+        .and_then(|t| t.content())
+        .map(|s| s.to_string())
+        .unwrap_or_else(|| "Unknown Agent".to_string());
+
+    let about = if event.content.is_empty() {
+        tags.iter()
+            .find(|t| t.kind() == TagKind::custom("description"))
+            .and_then(|t| t.content())
+            .map(|s| s.to_string())
+    } else {
+        Some(event.content.clone())
+    };
+
+    let framework = tags.iter()
+        .find(|t| t.kind() == TagKind::custom("framework"))
+        .and_then(|t| t.content())
+        .map(|s| s.to_string());
+
+    let version = tags.iter()
+        .find(|t| t.kind() == TagKind::custom("ver"))
+        .and_then(|t| t.content())
+        .map(|s| s.to_string());
+
+    let skills: Vec<String> = tags.iter()
+        .filter(|t| t.kind() == TagKind::custom("t"))
+        .filter_map(|t| t.content().map(|s| s.to_string()))
+        .filter(|s| s != "agent")
+        .collect();
+
+    let tui = tags.iter()
+        .any(|t| t.kind() == TagKind::custom("tool") && t.content() == Some("tui"));
+
+    Some(AgentRegistryEntry {
+        name,
+        about,
+        picture: None,
+        framework,
+        skills,
+        tui,
+        relay: None,
+        version,
+    })
 }
 
 #[derive(Debug, thiserror::Error)]
