@@ -121,7 +121,11 @@ impl SigilAgent {
         // Note: nostr-sdk Metadata doesn't support extra tags directly,
         // so we keep "agent": true in content for now.
         // Full NIP-AE compliance will require a custom kind:0 builder.
-        tracing::info!("Agent '{}' connected. npub: {}", self.profile.name, self.npub());
+        tracing::info!(
+            "Agent '{}' connected. npub: {}",
+            self.profile.name,
+            self.npub()
+        );
 
         // Store client
         {
@@ -153,7 +157,8 @@ impl SigilAgent {
                                 Ok(unwrapped) => {
                                     let content = unwrapped.rumor.content.clone();
                                     let sender = unwrapped.sender;
-                                    tracing::info!("[NIP-17] From {}: {}",
+                                    tracing::info!(
+                                        "[NIP-17] From {}: {}",
                                         sender.to_bech32().unwrap_or_default(),
                                         &content[..content.len().min(50)]
                                     );
@@ -174,20 +179,25 @@ impl SigilAgent {
                             let sender = event.pubkey;
                             match nip04::decrypt(keys.secret_key(), &sender, &event.content) {
                                 Ok(content) => {
-                                    tracing::info!("[NIP-04] From {}: {}",
+                                    tracing::info!(
+                                        "[NIP-04] From {}: {}",
                                         sender.to_bech32().unwrap_or_default(),
                                         &content[..content.len().min(50)]
                                     );
                                     if let Some(ref h) = handler {
                                         if let Some(reply) = h(content, sender) {
-                                            if let Ok(encrypted) = nip04::encrypt(
-                                                keys.secret_key(), &sender, &reply
-                                            ) {
+                                            if let Ok(encrypted) =
+                                                nip04::encrypt(keys.secret_key(), &sender, &reply)
+                                            {
                                                 let tag = Tag::public_key(sender);
                                                 if let Ok(ev) = EventBuilder::new(
                                                     Kind::EncryptedDirectMessage,
                                                     encrypted,
-                                                ).tag(tag).sign(&keys).await {
+                                                )
+                                                .tag(tag)
+                                                .sign(&keys)
+                                                .await
+                                                {
                                                     let _ = client_for_reply.send_event(ev).await;
                                                 }
                                             }

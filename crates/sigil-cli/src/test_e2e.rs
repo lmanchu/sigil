@@ -35,7 +35,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("=== Sigil E2E Test ===");
     println!("  User:    {}", keys.public_key().to_bech32()?);
-    println!("  Target:  {}...", &target_npub[..30.min(target_npub.len())]);
+    println!(
+        "  Target:  {}...",
+        &target_npub[..30.min(target_npub.len())]
+    );
     println!("  Timeout: {}s", timeout_secs);
     println!();
 
@@ -115,7 +118,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     if replies >= expected {
         println!("🎉 ALL {} REPLIES RECEIVED", replies);
     } else {
-        println!("⚠️  Got {}/{} replies (some may be delayed)", replies, expected);
+        println!(
+            "⚠️  Got {}/{} replies (some may be delayed)",
+            replies, expected
+        );
     }
 
     client.disconnect().await;
@@ -136,8 +142,11 @@ async fn send_nip04(
         .await?;
     match client.send_event(ev).await {
         Ok(output) => {
-            println!("  → sent (success: {}, failed: {})",
-                output.success.len(), output.failed.len());
+            println!(
+                "  → sent (success: {}, failed: {})",
+                output.success.len(),
+                output.failed.len()
+            );
         }
         Err(e) => {
             eprintln!("  → send warning: {} (may still arrive)", e);

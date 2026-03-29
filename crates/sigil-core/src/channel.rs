@@ -52,10 +52,7 @@ pub async fn send_channel_message(
 ) -> Result<(), Error> {
     let mut tags = vec![
         Tag::event(channel_id),
-        Tag::custom(
-            TagKind::custom("marker"),
-            vec!["root".to_string()],
-        ),
+        Tag::custom(TagKind::custom("marker"), vec!["root".to_string()]),
     ];
     if let Some(relay) = relay_hint {
         tags.push(Tag::custom(
@@ -75,9 +72,7 @@ pub async fn send_channel_message(
 
 /// Subscribe to messages in a channel. Returns a filter to use with client.subscribe().
 pub fn channel_filter(channel_id: EventId) -> Filter {
-    Filter::new()
-        .kind(Kind::ChannelMessage)
-        .event(channel_id)
+    Filter::new().kind(Kind::ChannelMessage).event(channel_id)
 }
 
 /// Fetch existing channel messages (history).
@@ -115,9 +110,7 @@ pub async fn fetch_channel_info(
     client: &Client,
     channel_id: EventId,
 ) -> Result<Option<ChannelInfo>, Error> {
-    let filter = Filter::new()
-        .kind(Kind::ChannelCreation)
-        .id(channel_id);
+    let filter = Filter::new().kind(Kind::ChannelCreation).id(channel_id);
 
     let events = client
         .fetch_events(filter, std::time::Duration::from_secs(5))

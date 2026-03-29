@@ -21,9 +21,7 @@ pub async fn discover_agents(
 ) -> Vec<DiscoveredAgent> {
     // Query kind:0 (metadata) events — we'll filter for agent=true client-side
     // since Nostr relays can't filter on JSON content fields
-    let filter = Filter::new()
-        .kind(Kind::Metadata)
-        .limit(500);
+    let filter = Filter::new().kind(Kind::Metadata).limit(500);
 
     let events = match client.fetch_events(filter, timeout).await {
         Ok(events) => events,
@@ -71,10 +69,7 @@ pub async fn discover_agents(
                 })
                 .unwrap_or_default();
 
-            let npub = event
-                .pubkey
-                .to_bech32()
-                .unwrap_or_default();
+            let npub = event.pubkey.to_bech32().unwrap_or_default();
 
             agents.push(DiscoveredAgent {
                 npub,

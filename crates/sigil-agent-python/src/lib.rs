@@ -1,9 +1,9 @@
-use pyo3::prelude::*;
-use pyo3::exceptions::PyRuntimeError;
-use sigil_core::agent::SigilAgent as CoreAgent;
 use nostr_sdk::prelude::ToBech32;
+use pyo3::exceptions::PyRuntimeError;
+use pyo3::prelude::*;
+use sigil_core::agent::SigilAgent as CoreAgent;
 use sigil_core::qr::AgentQrData;
-use sigil_core::tui::{TuiMessage, TuiButton, ButtonStyle};
+use sigil_core::tui::{ButtonStyle, TuiButton, TuiMessage};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
@@ -54,9 +54,8 @@ impl PySigilAgent {
     /// Get agent's public key in bech32 (npub) format
     #[getter]
     fn npub(&self) -> String {
-        self.runtime.block_on(async {
-            self.inner.read().await.npub()
-        })
+        self.runtime
+            .block_on(async { self.inner.read().await.npub() })
     }
 
     /// Get agent's secret key in bech32 (nsec) format
@@ -64,7 +63,10 @@ impl PySigilAgent {
     fn nsec(&self) -> PyResult<String> {
         self.runtime.block_on(async {
             let agent = self.inner.read().await;
-            agent.keys.secret_key().to_bech32()
+            agent
+                .keys
+                .secret_key()
+                .to_bech32()
                 .map_err(|e| PyRuntimeError::new_err(format!("{}", e)))
         })
     }
@@ -80,7 +82,8 @@ impl PySigilAgent {
                 relay,
                 name: agent.profile.name.clone(),
                 capabilities: vec![],
-            }.to_uri()
+            }
+            .to_uri()
         })
     }
 
@@ -94,8 +97,9 @@ impl PySigilAgent {
                 relay,
                 name: agent.profile.name.clone(),
                 capabilities: vec![],
-            }.to_qr_svg()
-                .map_err(|e| PyRuntimeError::new_err(format!("QR error: {}", e)))
+            }
+            .to_qr_svg()
+            .map_err(|e| PyRuntimeError::new_err(format!("QR error: {}", e)))
         })
     }
 
@@ -105,28 +109,41 @@ impl PySigilAgent {
             let agent = self.inner.read().await;
             let to = nostr_sdk::PublicKey::parse(&to_npub)
                 .map_err(|e| PyRuntimeError::new_err(format!("Invalid npub: {}", e)))?;
-            agent.send(to, &content).await
+            agent
+                .send(to, &content)
+                .await
                 .map_err(|e| PyRuntimeError::new_err(format!("Send error: {}", e)))
         })
     }
 
     /// Send TUI buttons message
-    fn send_buttons(&self, to_npub: String, text: String, buttons: Vec<(String, String)>) -> PyResult<()> {
+    fn send_buttons(
+        &self,
+        to_npub: String,
+        text: String,
+        buttons: Vec<(String, String)>,
+    ) -> PyResult<()> {
         let tui = TuiMessage::Buttons {
             text: Some(text),
-            items: buttons.into_iter().map(|(id, label)| TuiButton {
-                id, label, style: Some(ButtonStyle::Primary),
-            }).collect(),
+            items: buttons
+                .into_iter()
+                .map(|(id, label)| TuiButton {
+                    id,
+                    label,
+                    style: Some(ButtonStyle::Primary),
+                })
+                .collect(),
         };
-        let json = tui.to_json()
+        let json = tui
+            .to_json()
             .map_err(|e| PyRuntimeError::new_err(format!("JSON error: {}", e)))?;
         self.send(to_npub, json)
     }
 
     fn __repr__(&self) -> String {
-        let npub = self.runtime.block_on(async {
-            self.inner.read().await.npub()
-        });
+        let npub = self
+            .runtime
+            .block_on(async { self.inner.read().await.npub() });
         format!("SigilAgent(npub={})", &npub[..20.min(npub.len())])
     }
 }
@@ -143,11 +160,17 @@ impl PyTuiButtons {
     fn create(text: String, buttons: Vec<(String, String)>) -> PyResult<String> {
         let tui = TuiMessage::Buttons {
             text: Some(text),
-            items: buttons.into_iter().map(|(id, label)| TuiButton {
-                id, label, style: Some(ButtonStyle::Primary),
-            }).collect(),
+            items: buttons
+                .into_iter()
+                .map(|(id, label)| TuiButton {
+                    id,
+                    label,
+                    style: Some(ButtonStyle::Primary),
+                })
+                .collect(),
         };
-        tui.to_json().map_err(|e| PyRuntimeError::new_err(format!("{}", e)))
+        tui.to_json()
+            .map_err(|e| PyRuntimeError::new_err(format!("{}", e)))
     }
 }
 
@@ -165,6 +188,7 @@ impl PyTuiCard {
             image_url: None,
             actions: None,
         };
-        tui.to_json().map_err(|e| PyRuntimeError::new_err(format!("{}", e)))
+        tui.to_json()
+            .map_err(|e| PyRuntimeError::new_err(format!("{}", e)))
     }
 }

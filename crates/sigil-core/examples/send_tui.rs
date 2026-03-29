@@ -2,7 +2,7 @@
 //! Usage: cargo run --example send_tui -- <npub>
 
 use nostr_sdk::prelude::*;
-use sigil_core::tui::{TuiMessage, TuiButton, ButtonStyle};
+use sigil_core::tui::{ButtonStyle, TuiButton, TuiMessage};
 use std::fs;
 
 #[tokio::main]
@@ -10,9 +10,8 @@ async fn main() {
     let args: Vec<String> = std::env::args().collect();
     let recipient_npub = args.get(1).expect("Usage: send_tui <npub>");
 
-    let key_data = fs::read_to_string(
-        dirs::home_dir().unwrap().join(".sigil/echo-agent.key")
-    ).unwrap();
+    let key_data =
+        fs::read_to_string(dirs::home_dir().unwrap().join(".sigil/echo-agent.key")).unwrap();
     let keys = Keys::parse(key_data.trim()).unwrap();
 
     let client = Client::new(keys.clone());
@@ -26,9 +25,21 @@ async fn main() {
     let buttons_msg = TuiMessage::Buttons {
         text: Some("What would you like me to do?".to_string()),
         items: vec![
-            TuiButton { id: "calendar".into(), label: "📅 Check Calendar".into(), style: Some(ButtonStyle::Primary) },
-            TuiButton { id: "email".into(), label: "📧 Read Email".into(), style: Some(ButtonStyle::Secondary) },
-            TuiButton { id: "tasks".into(), label: "✅ Show Tasks".into(), style: Some(ButtonStyle::Secondary) },
+            TuiButton {
+                id: "calendar".into(),
+                label: "📅 Check Calendar".into(),
+                style: Some(ButtonStyle::Primary),
+            },
+            TuiButton {
+                id: "email".into(),
+                label: "📧 Read Email".into(),
+                style: Some(ButtonStyle::Secondary),
+            },
+            TuiButton {
+                id: "tasks".into(),
+                label: "✅ Show Tasks".into(),
+                style: Some(ButtonStyle::Secondary),
+            },
         ],
     };
 
@@ -50,9 +61,11 @@ async fn main() {
         title: "Sigil Agent Status".to_string(),
         description: Some("Your AI-Native Messenger agent is online and ready.".to_string()),
         image_url: None,
-        actions: Some(vec![
-            TuiButton { id: "details".into(), label: "View Details".into(), style: Some(ButtonStyle::Primary) },
-        ]),
+        actions: Some(vec![TuiButton {
+            id: "details".into(),
+            label: "View Details".into(),
+            style: Some(ButtonStyle::Primary),
+        }]),
     };
 
     let content2 = card_msg.to_json().unwrap();

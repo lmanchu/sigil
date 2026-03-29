@@ -63,7 +63,10 @@ pub async fn publish_agent(
 
     if let Some(about) = &entry.about {
         Tag::custom(TagKind::custom("description"), vec![about.clone()]);
-        tags.push(Tag::custom(TagKind::custom("description"), vec![about.clone()]));
+        tags.push(Tag::custom(
+            TagKind::custom("description"),
+            vec![about.clone()],
+        ));
     }
 
     if let Some(fw) = &entry.framework {
@@ -75,7 +78,10 @@ pub async fn publish_agent(
     }
 
     if entry.tui {
-        tags.push(Tag::custom(TagKind::custom("tool"), vec!["tui".to_string()]));
+        tags.push(Tag::custom(
+            TagKind::custom("tool"),
+            vec!["tui".to_string()],
+        ));
     }
 
     // Add skill tags for relay-level filtering
@@ -139,7 +145,8 @@ pub async fn search_agents(
 fn parse_nip_ae_event(event: &Event) -> Option<AgentRegistryEntry> {
     let tags = event.tags.iter().collect::<Vec<_>>();
 
-    let name = tags.iter()
+    let name = tags
+        .iter()
         .find(|t| t.kind() == TagKind::custom("title"))
         .and_then(|t| t.content())
         .map(|s| s.to_string())
@@ -154,23 +161,27 @@ fn parse_nip_ae_event(event: &Event) -> Option<AgentRegistryEntry> {
         Some(event.content.clone())
     };
 
-    let framework = tags.iter()
+    let framework = tags
+        .iter()
         .find(|t| t.kind() == TagKind::custom("framework"))
         .and_then(|t| t.content())
         .map(|s| s.to_string());
 
-    let version = tags.iter()
+    let version = tags
+        .iter()
         .find(|t| t.kind() == TagKind::custom("ver"))
         .and_then(|t| t.content())
         .map(|s| s.to_string());
 
-    let skills: Vec<String> = tags.iter()
+    let skills: Vec<String> = tags
+        .iter()
         .filter(|t| t.kind() == TagKind::custom("t"))
         .filter_map(|t| t.content().map(|s| s.to_string()))
         .filter(|s| s != "agent")
         .collect();
 
-    let tui = tags.iter()
+    let tui = tags
+        .iter()
         .any(|t| t.kind() == TagKind::custom("tool") && t.content() == Some("tui"));
 
     Some(AgentRegistryEntry {

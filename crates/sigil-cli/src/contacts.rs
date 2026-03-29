@@ -85,14 +85,12 @@ impl ContactBook {
 
     /// Get display name for an npub, falling back to truncated npub
     pub fn display_name(&self, npub: &str) -> String {
-        self.find(npub)
-            .map(|c| c.name.clone())
-            .unwrap_or_else(|| {
-                if npub.len() > 16 {
-                    format!("{}...", &npub[..16])
-                } else {
-                    npub.to_string()
-                }
-            })
+        self.find(npub).map(|c| c.name.clone()).unwrap_or_else(|| {
+            if npub.len() > 16 {
+                format!("{}...", &npub[..16])
+            } else {
+                npub.to_string()
+            }
+        })
     }
 }

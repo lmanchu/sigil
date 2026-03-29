@@ -119,9 +119,7 @@ pub async fn start_nostr(
     // Subscribe to channels
     for ch_id_hex in &channel_ids {
         if let Ok(eid) = EventId::from_hex(ch_id_hex) {
-            let ch_filter = Filter::new()
-                .kind(Kind::ChannelMessage)
-                .event(eid);
+            let ch_filter = Filter::new().kind(Kind::ChannelMessage).event(eid);
             client.subscribe(ch_filter, None).await?;
         }
     }
@@ -176,13 +174,8 @@ pub async fn start_nostr(
             match notifications.recv().await {
                 Ok(RelayPoolNotification::Event { event, .. }) => match event.kind {
                     Kind::GiftWrap => {
-                        if let Ok(unwrapped) =
-                            UnwrappedGift::from_gift_wrap(&keys2, &event).await
-                        {
-                            let sender_npub = unwrapped
-                                .sender
-                                .to_bech32()
-                                .unwrap_or_default();
+                        if let Ok(unwrapped) = UnwrappedGift::from_gift_wrap(&keys2, &event).await {
+                            let sender_npub = unwrapped.sender.to_bech32().unwrap_or_default();
                             let _ = ev_tx2
                                 .send(ChatEvent::MessageReceived {
                                     sender_npub,
@@ -196,8 +189,7 @@ pub async fn start_nostr(
                         if let Ok(content) =
                             nip04::decrypt(keys2.secret_key(), &sender, &event.content)
                         {
-                            let sender_npub =
-                                sender.to_bech32().unwrap_or_default();
+                            let sender_npub = sender.to_bech32().unwrap_or_default();
                             let _ = ev_tx2
                                 .send(ChatEvent::MessageReceived {
                                     sender_npub,
@@ -209,7 +201,9 @@ pub async fn start_nostr(
                     Kind::ChannelMessage => {
                         // Extract channel_id from e tag
                         let channel_id = event.tags.iter().find_map(|t| {
-                            if t.kind() == TagKind::SingleLetter(SingleLetterTag::lowercase(Alphabet::E)) {
+                            if t.kind()
+                                == TagKind::SingleLetter(SingleLetterTag::lowercase(Alphabet::E))
+                            {
                                 t.content().map(|s| s.to_string())
                             } else {
                                 None

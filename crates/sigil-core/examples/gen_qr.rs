@@ -6,9 +6,8 @@ use sigil_core::qr::AgentQrData;
 use std::fs;
 
 fn main() {
-    let key_data = fs::read_to_string(
-        dirs::home_dir().unwrap().join(".sigil/echo-agent.key")
-    ).unwrap();
+    let key_data =
+        fs::read_to_string(dirs::home_dir().unwrap().join(".sigil/echo-agent.key")).unwrap();
     let keys = nostr_sdk::Keys::parse(key_data.trim()).unwrap();
     let npub = keys.public_key().to_bech32().unwrap();
 
@@ -30,7 +29,8 @@ fn main() {
     fs::write(&svg_path, &svg).unwrap();
 
     // Save HTML wrapper for easy viewing
-    let html = format!(r#"<!DOCTYPE html>
+    let html = format!(
+        r#"<!DOCTYPE html>
 <html><head><title>Sigil Agent QR</title>
 <style>
 body {{ font-family: -apple-system, sans-serif; display: flex; flex-direction: column;
@@ -53,7 +53,9 @@ svg {{ margin: 20px 0; }}
   <div class="npub">{}</div>
   <div class="uri">{}</div>
 </div>
-</body></html>"#, svg, npub, uri);
+</body></html>"#,
+        svg, npub, uri
+    );
 
     let html_path = dir.join("echo-agent-qr.html");
     fs::write(&html_path, html).unwrap();

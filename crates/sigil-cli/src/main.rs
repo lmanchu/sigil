@@ -141,7 +141,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             Ok(())
         }
         Some(Commands::Discover { relay, limit }) => cmd_discover(&relay, limit).await,
-        Some(Commands::Channel { name, about, relay }) => cmd_channel(&name, about.as_deref(), &relay).await,
+        Some(Commands::Channel { name, about, relay }) => {
+            cmd_channel(&name, about.as_deref(), &relay).await
+        }
         Some(Commands::Join { channel_id, relay }) => cmd_join(&channel_id, &relay).await,
         Some(Commands::Register { skills, relay }) => cmd_register(skills.as_deref(), &relay).await,
         Some(Commands::Registry { skill, relay }) => cmd_registry(skill.as_deref(), &relay).await,
@@ -183,7 +185,14 @@ fn cmd_whoami() {
         println!();
     }
     let npub = keys.public_key().to_bech32().unwrap_or_default();
-    println!("  Name:  {}", if profile.display_name.is_empty() { "(not set)" } else { &profile.display_name });
+    println!(
+        "  Name:  {}",
+        if profile.display_name.is_empty() {
+            "(not set)"
+        } else {
+            &profile.display_name
+        }
+    );
     println!("  npub:  {}", npub);
     println!("  Key:   ~/.sigil/user.key");
     let db = Storage::open();
@@ -243,7 +252,11 @@ async fn cmd_discover(relay: &str, limit: usize) -> Result<(), Box<dyn std::erro
             let marker = if already { " (saved)" } else { "" };
             println!("  {}. ⚙ {}{}", i + 1, agent.name, marker);
             if let Some(about) = &agent.about {
-                let short = if about.len() > 60 { format!("{}...", &about[..60]) } else { about.clone() };
+                let short = if about.len() > 60 {
+                    format!("{}...", &about[..60])
+                } else {
+                    about.clone()
+                };
                 println!("     {}", short);
             }
             let short_npub = if agent.npub.len() > 30 {
@@ -264,7 +277,11 @@ async fn cmd_discover(relay: &str, limit: usize) -> Result<(), Box<dyn std::erro
     Ok(())
 }
 
-async fn cmd_channel(name: &str, about: Option<&str>, relay: &str) -> Result<(), Box<dyn std::error::Error>> {
+async fn cmd_channel(
+    name: &str,
+    about: Option<&str>,
+    relay: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
     let (keys, _, _) = identity::load_or_create_identity();
     let client = Client::new(keys.clone());
     client.add_relay(relay).await?;
@@ -283,7 +300,11 @@ async fn cmd_channel(name: &str, about: Option<&str>, relay: &str) -> Result<(),
     println!("  ID:   {}", channel_id.to_hex());
     println!();
     println!("Join:  sigil join {}", channel_id.to_hex());
-    println!("Share: sigil join {} --relay {}", channel_id.to_hex(), relay);
+    println!(
+        "Share: sigil join {} --relay {}",
+        channel_id.to_hex(),
+        relay
+    );
 
     client.disconnect().await;
     Ok(())
@@ -339,9 +360,15 @@ async fn cmd_join(channel_id_str: &str, relay: &str) -> Result<(), Box<dyn std::
         loop {
             match notifications.recv().await {
                 Ok(RelayPoolNotification::Event { event, .. }) => {
-                    if event.kind == Kind::ChannelMessage && event.pubkey != keys_listen.public_key() {
+                    if event.kind == Kind::ChannelMessage
+                        && event.pubkey != keys_listen.public_key()
+                    {
                         let sender = event.pubkey.to_bech32().unwrap_or_default();
-                        let short = if sender.len() > 16 { &sender[..16] } else { &sender };
+                        let short = if sender.len() > 16 {
+                            &sender[..16]
+                        } else {
+                            &sender
+                        };
                         println!("  {}: {}", short, event.content);
                     }
                 }
@@ -394,7 +421,14 @@ async fn cmd_register(skills: Option<&str>, relay: &str) -> Result<(), Box<dyn s
     let event_id = registry::publish_agent(&client, &keys, &entry).await?;
     println!("Registered in agent registry!");
     println!("  Name:   {}", profile.display_name);
-    println!("  Skills: {}", if skill_list.is_empty() { "(none)".to_string() } else { skill_list.join(", ") });
+    println!(
+        "  Skills: {}",
+        if skill_list.is_empty() {
+            "(none)".to_string()
+        } else {
+            skill_list.join(", ")
+        }
+    );
     println!("  Event:  {}", event_id.to_hex());
 
     client.disconnect().await;
@@ -424,15 +458,24 @@ async fn cmd_registry(skill: Option<&str>, relay: &str) -> Result<(), Box<dyn st
             let npub = pk.to_bech32().unwrap_or_default();
             let saved = contacts.find(&npub).is_some();
             let marker = if saved { " (saved)" } else { "" };
-            println!("  {}. {} {}{}", i + 1, entry.name,
-                entry.framework.as_deref().unwrap_or(""), marker);
+            println!(
+                "  {}. {} {}{}",
+                i + 1,
+                entry.name,
+                entry.framework.as_deref().unwrap_or(""),
+                marker
+            );
             if let Some(about) = &entry.about {
                 println!("     {}", about);
             }
             if !entry.skills.is_empty() {
                 println!("     skills: {}", entry.skills.join(", "));
             }
-            let short = if npub.len() > 30 { format!("{}...", &npub[..30]) } else { npub };
+            let short = if npub.len() > 30 {
+                format!("{}...", &npub[..30])
+            } else {
+                npub
+            };
             println!("     npub: {}", short);
             println!();
         }
@@ -452,7 +495,10 @@ async fn run_tui(relay: Option<String>) -> Result<(), Box<dyn std::error::Error>
         println!("║     Welcome to Sigil Messenger       ║");
         println!("╚══════════════════════════════════════╝");
         println!();
-        println!("  Your npub: {}", keys.public_key().to_bech32().unwrap_or_default());
+        println!(
+            "  Your npub: {}",
+            keys.public_key().to_bech32().unwrap_or_default()
+        );
         println!();
         print!("  Enter your display name: ");
         io::Write::flush(&mut io::stdout())?;
@@ -493,8 +539,7 @@ async fn run_tui(relay: Option<String>) -> Result<(), Box<dyn std::error::Error>
     } else {
         format!("{} relays", relays.len())
     };
-    let (out_tx, mut ev_rx, _client) =
-        chat::start_nostr(keys.clone(), relays, channel_ids).await?;
+    let (out_tx, mut ev_rx, _client) = chat::start_nostr(keys.clone(), relays, channel_ids).await?;
 
     // Setup terminal
     enable_raw_mode()?;
@@ -743,15 +788,14 @@ fn handle_command(cmd: &str, app: &mut App) {
             }
         }
         Some("/discover") => {
-            app.status_line = "Use CLI: sigil discover (discovery requires relay query)".to_string();
+            app.status_line =
+                "Use CLI: sigil discover (discovery requires relay query)".to_string();
         }
         Some("/quit") | Some("/q") => {
             app.should_quit = true;
         }
         Some("/help") => {
-            app.status_line =
-                "/add | /join | /relay | /whoami | /quit | j/k | i | q"
-                    .to_string();
+            app.status_line = "/add | /join | /relay | /whoami | /quit | j/k | i | q".to_string();
         }
         _ => {
             app.status_line = format!("Unknown command: {}", cmd);
@@ -817,7 +861,13 @@ fn save_channels(channels: &[ui::JoinedChannel]) {
         id: &'a str,
         name: &'a str,
     }
-    let data: Vec<Ch> = channels.iter().map(|c| Ch { id: &c.id, name: &c.name }).collect();
+    let data: Vec<Ch> = channels
+        .iter()
+        .map(|c| Ch {
+            id: &c.id,
+            name: &c.name,
+        })
+        .collect();
     std::fs::write(&path, serde_json::to_string_pretty(&data).unwrap()).ok();
 }
 

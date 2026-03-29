@@ -5,9 +5,9 @@
 //!
 //! Run: cargo run --example echo_agent
 
-use sigil_core::SigilAgent;
-use sigil_core::qr::AgentQrData;
 use nostr_sdk::prelude::ToBech32;
+use sigil_core::qr::AgentQrData;
+use sigil_core::SigilAgent;
 use std::fs;
 use std::path::PathBuf;
 
@@ -21,15 +21,13 @@ fn key_path() -> PathBuf {
 async fn main() {
     tracing_subscriber::fmt::init();
 
-    let relay = std::env::var("SIGIL_RELAY")
-        .unwrap_or_else(|_| "wss://relay.damus.io".to_string());
+    let relay = std::env::var("SIGIL_RELAY").unwrap_or_else(|_| "wss://relay.damus.io".to_string());
 
     // Load or create persistent keypair
     let key_file = key_path();
     let mut agent = if key_file.exists() {
         let secret = fs::read_to_string(&key_file).expect("read key file");
-        SigilAgent::from_key("Echo Agent", secret.trim(), vec![relay.clone()])
-            .expect("parse key")
+        SigilAgent::from_key("Echo Agent", secret.trim(), vec![relay.clone()]).expect("parse key")
     } else {
         let a = SigilAgent::new("Echo Agent", vec![relay.clone()]);
         fs::write(&key_file, a.keys.secret_key().to_bech32().unwrap()).ok();

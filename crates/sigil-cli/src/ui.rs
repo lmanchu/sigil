@@ -16,7 +16,7 @@ pub enum InputMode {
 /// A channel the user has joined
 #[derive(Debug, Clone)]
 pub struct JoinedChannel {
-    pub id: String,    // hex event ID
+    pub id: String, // hex event ID
     pub name: String,
 }
 
@@ -166,7 +166,11 @@ fn draw_contacts(frame: &mut Frame, app: &App, area: Rect) {
             .borders(Borders::ALL)
             .border_style(Style::default().fg(Color::DarkGray))
             .title(" Contacts ")
-            .title_style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+            .title_style(
+                Style::default()
+                    .fg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD),
+            ),
     );
     frame.render_widget(list, area);
 }
@@ -218,7 +222,11 @@ fn draw_chat(frame: &mut Frame, app: &App, area: Rect) {
             .borders(Borders::ALL)
             .border_style(Style::default().fg(Color::DarkGray))
             .title(title)
-            .title_style(Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)),
+            .title_style(
+                Style::default()
+                    .fg(Color::Green)
+                    .add_modifier(Modifier::BOLD),
+            ),
     );
     frame.render_widget(chat, area);
 }
@@ -286,8 +294,14 @@ fn render_entry<'a>(entry: &ChatEntry, contacts: &ContactBook) -> Vec<Line<'a>> 
 
 fn draw_input(frame: &mut Frame, app: &App, area: Rect) {
     let (title, style) = match app.input_mode {
-        InputMode::Normal => (" Press 'i' to type, '/' for commands ", Style::default().fg(Color::DarkGray)),
-        InputMode::Editing => (" Message (Enter to send, Esc to cancel) ", Style::default().fg(Color::Yellow)),
+        InputMode::Normal => (
+            " Press 'i' to type, '/' for commands ",
+            Style::default().fg(Color::DarkGray),
+        ),
+        InputMode::Editing => (
+            " Message (Enter to send, Esc to cancel) ",
+            Style::default().fg(Color::Yellow),
+        ),
         InputMode::Command => (" Command ", Style::default().fg(Color::Magenta)),
     };
 
@@ -316,7 +330,13 @@ fn draw_status(frame: &mut Frame, app: &App, area: Rect) {
         app.my_npub.clone()
     };
     let status = Line::from(vec![
-        Span::styled(" sigil ", Style::default().fg(Color::Black).bg(Color::Cyan).add_modifier(Modifier::BOLD)),
+        Span::styled(
+            " sigil ",
+            Style::default()
+                .fg(Color::Black)
+                .bg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        ),
         Span::raw(" "),
         Span::styled(&app.status_line, Style::default().fg(Color::Green)),
         Span::styled(

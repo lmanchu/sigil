@@ -28,7 +28,14 @@ fn key_path() -> PathBuf {
 /// Call hermes with optional session resume for multi-turn conversations.
 /// Returns (response_text, session_id).
 async fn call_hermes(query: &str, session_id: Option<&str>) -> (String, Option<String>) {
-    let mut args = vec!["chat", "-q", query, "-Q", "-t", "clarify,delegation,browser"];
+    let mut args = vec![
+        "chat",
+        "-q",
+        query,
+        "-Q",
+        "-t",
+        "clarify,delegation,browser",
+    ];
 
     let session_flag;
     if let Some(sid) = session_id {
@@ -37,10 +44,7 @@ async fn call_hermes(query: &str, session_id: Option<&str>) -> (String, Option<S
         args.push(&session_flag);
     }
 
-    let result = TokioCommand::new("hermes")
-        .args(&args)
-        .output()
-        .await;
+    let result = TokioCommand::new("hermes").args(&args).output().await;
 
     match result {
         Ok(output) => {
@@ -52,7 +56,12 @@ async fn call_hermes(query: &str, session_id: Option<&str>) -> (String, Option<S
                 .lines()
                 .rev()
                 .find(|l| l.starts_with("session_id:"))
-                .map(|l| l.strip_prefix("session_id:").unwrap_or("").trim().to_string());
+                .map(|l| {
+                    l.strip_prefix("session_id:")
+                        .unwrap_or("")
+                        .trim()
+                        .to_string()
+                });
 
             // Remove the session_id line from the response
             let clean_response: String = response
@@ -66,7 +75,13 @@ async fn call_hermes(query: &str, session_id: Option<&str>) -> (String, Option<S
             if clean_response.is_empty() {
                 let stderr = String::from_utf8_lossy(&output.stderr).to_string();
                 if !stderr.is_empty() {
-                    (format!("(hermes error: {})", stderr.lines().last().unwrap_or("unknown")), new_session_id)
+                    (
+                        format!(
+                            "(hermes error: {})",
+                            stderr.lines().last().unwrap_or("unknown")
+                        ),
+                        new_session_id,
+                    )
                 } else {
                     ("(no response)".to_string(), new_session_id)
                 }
@@ -93,8 +108,7 @@ fn build_info_table() -> String {
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt::init();
 
-    let relay = std::env::var("SIGIL_RELAY")
-        .unwrap_or_else(|_| "wss://relay.damus.io".to_string());
+    let relay = std::env::var("SIGIL_RELAY").unwrap_or_else(|_| "wss://relay.damus.io".to_string());
 
     // Load or create persistent keypair
     let key_file = key_path();
@@ -132,11 +146,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .name("Hermes Bridge")
         .about("155+ skills via encrypted Nostr DM")
         .custom_field("agent", serde_json::json!(true))
-        .custom_field("capabilities", serde_json::json!({
-            "skills": ["research", "github", "linear", "finance", "polymarket", "tasks"],
-            "tui": true,
-            "framework": "sigil+hermes"
-        }));
+        .custom_field(
+            "capabilities",
+            serde_json::json!({
+                "skills": ["research", "github", "linear", "finance", "polymarket", "tasks"],
+                "tui": true,
+                "framework": "sigil+hermes"
+            }),
+        );
     client.set_metadata(&metadata).await?;
 
     // Subscribe to DMs
@@ -153,7 +170,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     let mode_str = match access.mode {
-        sigil_core::access::AgentMode::Personal => format!("PERSONAL (owner + {} authorized)", access.authorized.len()),
+        sigil_core::access::AgentMode::Personal => {
+            format!("PERSONAL (owner + {} authorized)", access.authorized.len())
+        }
         sigil_core::access::AgentMode::Service => "SERVICE (open to all)".to_string(),
     };
 
@@ -198,12 +217,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             Err(_) => continue,
                         }
                     }
-                    Kind::GiftWrap => {
-                        match UnwrappedGift::from_gift_wrap(&keys, &event).await {
-                            Ok(uw) => (uw.sender, uw.rumor.content.clone()),
-                            Err(_) => continue,
-                        }
-                    }
+                    Kind::GiftWrap => match UnwrappedGift::from_gift_wrap(&keys, &event).await {
+                        Ok(uw) => (uw.sender, uw.rumor.content.clone()),
+                        Err(_) => continue,
+                    },
                     _ => continue,
                 };
 
@@ -218,7 +235,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 if !access.is_authorized(&sender_npub) {
                     println!("[{}] DENIED (unauthorized)", sender_short);
                     // Send rejection message
-                    if let Ok(encrypted) = nip04::encrypt(keys.secret_key(), &sender, &access.reject_message) {
+                    if let Ok(encrypted) =
+                        nip04::encrypt(keys.secret_key(), &sender, &access.reject_message)
+                    {
                         let tag = Tag::public_key(sender);
                         if let Ok(ev) = EventBuilder::new(Kind::EncryptedDirectMessage, encrypted)
                             .tag(tag)
@@ -281,8 +300,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                     // Route to Hermes with session continuity
                     let existing_session = sessions.get(&sender_npub).map(|s| s.as_str());
-                    println!("[{}] Calling hermes (session: {:?})...", sender_short,
-                        existing_session.map(|s| &s[..s.len().min(10)]));
+                    println!(
+                        "[{}] Calling hermes (session: {:?})...",
+                        sender_short,
+                        existing_session.map(|s| &s[..s.len().min(10)])
+                    );
 
                     let (response, new_session_id) = call_hermes(&content, existing_session).await;
 
