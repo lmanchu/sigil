@@ -48,6 +48,45 @@ sigil join <channel_id>
 | No central server | ❌ | ❌ | ❌ | ✅ Nostr relays |
 | Open source | Partial | ❌ | ✅ | ✅ MIT |
 
+## Security
+
+Sigil agents handle personal data (notes, messages, finance). Security is not optional.
+
+### Agent Access Modes
+
+```
+Personal Agent (default)
+├── Owner npub — always has full access
+├── Authorized[] — explicit whitelist
+└── Everyone else → polite rejection, no data exposure
+
+Service Agent
+├── Open to anyone
+└── Still has rate limit + dedup protection
+```
+
+Config per agent: `~/.sigil/<agent-name>.access.json`
+
+### Defense in Depth
+
+| Layer | Protection |
+|-------|-----------|
+| **Access control** | Owner + whitelist (personal mode) |
+| **Key encryption** | `sigil encrypt-key` — passphrase-protected nsec |
+| **Rate limiting** | 10 msg/min per sender, prevents abuse |
+| **Event dedup** | 10K event ID tracking, blocks relay replay |
+| **Tool sandboxing** | Hermes bridge: no `--yolo`, restricted toolsets |
+| **E2E encryption** | NIP-04/NIP-44 — relay can't read message content |
+
+### Encrypt Your Keys
+
+```bash
+sigil encrypt-key    # Set passphrase — key encrypted at rest
+sigil decrypt-key    # Remove encryption
+```
+
+Without encryption, `~/.sigil/user.key` is a plaintext nsec on disk.
+
 ## CLI Reference
 
 ```
@@ -62,6 +101,8 @@ sigil registry     Search agent registry (kind:31990)
 sigil register     Publish yourself to the agent registry
 sigil channel      Create a new NIP-28 group channel
 sigil join         Join a channel and chat
+sigil encrypt-key  Encrypt key file with passphrase
+sigil decrypt-key  Remove key encryption
 ```
 
 ### TUI Keybindings
@@ -96,7 +137,10 @@ q           Quit
 │  ├── tui.rs             │    Buttons, cards, tables
 │  ├── channel.rs         │    NIP-28 group chat
 │  ├── registry.rs        │    Agent registry (kind:31990)
-│  └── qr.rs              │    QR code + sigil:// URI
+│  ├── qr.rs              │    QR code + sigil:// URI
+│  ├── access.rs          │    Personal/Service agent modes
+│  ├── guard.rs           │    Rate limit, dedup, key encryption
+│  └── file.rs            │    File sharing (NIP-94)
 └─────────────────────────┘
 ```
 
@@ -104,10 +148,14 @@ q           Quit
 
 ```
 ~/.sigil/
-├── user.key         Nostr secret key (nsec)
-├── user.json        Display name, preferences
-├── contacts.json    Contact book with agent metadata
-└── messages.db      SQLite chat history
+├── user.key                       Nostr secret key (plaintext or encrypted)
+├── user.json                      Display name, preferences
+├── contacts.json                  Contact book with agent metadata
+├── messages.db                    SQLite chat history
+├── relays.json                    Configured relay list
+├── channels.json                  Joined NIP-28 channels
+├── hermes-bridge.key              Agent-specific keypair
+└── hermes-bridge.access.json      Agent access control config
 ```
 
 ### Agent Registry (kind:31990)
@@ -144,7 +192,7 @@ Agents send structured JSON inside encrypted DMs. Sigil renders them as interact
 
 Types: `text`, `buttons`, `card`, `table`.
 
-## What's Built (v0.4.0)
+## What's Built (v0.5.0)
 
 | Component | Status | Details |
 |-----------|--------|---------|
@@ -156,6 +204,8 @@ Types: `text`, `buttons`, `card`, `table`.
 | **Agent Discovery** | ✅ | kind:0 scan + kind:31990 registry |
 | **Group Chat** | ✅ | NIP-28 public channels |
 | **Message Persistence** | ✅ | SQLite, survives restarts |
+| **Hermes Bridge** | ✅ | 155+ skills via Nostr DM, async, E2E verified |
+| **Security** | ✅ | Access control, key encryption, rate limit, dedup |
 | **cargo install** | ✅ | One command install |
 
 ## Build an Agent
