@@ -20,43 +20,20 @@ struct AgentProfileView: View {
             // Header
             Section {
                 VStack(spacing: 16) {
-                    // Avatar with photo picker
-                    PhotosPicker(selection: $selectedPhoto, matching: .images) {
-                        ZStack {
-                            #if canImport(UIKit)
-                            if let data = agent.avatarData, let uiImage = UIImage(data: data) {
-                                Image(uiImage: uiImage)
-                                    .resizable()
-                                    .scaledToFill()
-                                    .frame(width: 88, height: 88)
-                                    .clipShape(Circle())
-                            } else {
-                                defaultAvatarLarge
-                            }
-                            #else
-                            defaultAvatarLarge
-                            #endif
-
-                            // Camera badge
-                            Circle()
-                                .fill(SigilTheme.agentAccent)
-                                .frame(width: 26, height: 26)
-                                .overlay(
-                                    Image(systemName: "camera.fill")
-                                        .font(.system(size: 11))
-                                        .foregroundStyle(.white)
-                                )
-                                .offset(x: 32, y: 32)
-                        }
+                    // Avatar (tap Edit to change)
+                    #if canImport(UIKit)
+                    if let data = agent.avatarData, let uiImage = UIImage(data: data) {
+                        Image(uiImage: uiImage)
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: 88, height: 88)
+                            .clipShape(Circle())
+                    } else {
+                        defaultAvatarLarge
                     }
-                    .onChange(of: selectedPhoto) { _, item in
-                        Task {
-                            if let data = try? await item?.loadTransferable(type: Data.self) {
-                                agent.avatarData = data
-                                nostrService.saveContact(agent)
-                            }
-                        }
-                    }
+                    #else
+                    defaultAvatarLarge
+                    #endif
 
                     VStack(spacing: 6) {
                         HStack(spacing: 8) {
@@ -188,6 +165,57 @@ struct AgentProfileView: View {
         .sheet(isPresented: $editingName) {
             NavigationStack {
                 Form {
+                    // Avatar picker inside edit sheet
+                    Section("Avatar") {
+                        HStack {
+                            Spacer()
+                            PhotosPicker(selection: $selectedPhoto, matching: .images) {
+                                ZStack {
+                                    #if canImport(UIKit)
+                                    if let data = agent.avatarData, let uiImage = UIImage(data: data) {
+                                        Image(uiImage: uiImage)
+                                            .resizable()
+                                            .scaledToFill()
+                                            .frame(width: 80, height: 80)
+                                            .clipShape(Circle())
+                                    } else {
+                                        Circle()
+                                            .fill(SigilTheme.agentAccent.opacity(0.15))
+                                            .frame(width: 80, height: 80)
+                                            .overlay(
+                                                Image(systemName: "cpu")
+                                                    .font(.system(size: 30))
+                                                    .foregroundStyle(SigilTheme.agentAccent)
+                                            )
+                                    }
+                                    #else
+                                    Circle()
+                                        .fill(SigilTheme.agentAccent.opacity(0.15))
+                                        .frame(width: 80, height: 80)
+                                    #endif
+
+                                    Circle()
+                                        .fill(SigilTheme.accent)
+                                        .frame(width: 26, height: 26)
+                                        .overlay(
+                                            Image(systemName: "camera.fill")
+                                                .font(.system(size: 11))
+                                                .foregroundStyle(.white)
+                                        )
+                                        .offset(x: 28, y: 28)
+                                }
+                            }
+                            .onChange(of: selectedPhoto) { _, item in
+                                Task {
+                                    if let data = try? await item?.loadTransferable(type: Data.self) {
+                                        agent.avatarData = data
+                                    }
+                                }
+                            }
+                            Spacer()
+                        }
+                    }
+
                     Section("Name") {
                         TextField("Name", text: $editName)
                     }
