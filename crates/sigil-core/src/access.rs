@@ -105,3 +105,55 @@ fn access_path(agent_name: &str) -> PathBuf {
     fs::create_dir_all(&dir).ok();
     dir.join(format!("{}.access.json", agent_name))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_personal_mode_owner_authorized() {
+        let ac = AccessControl::personal("npub1owner");
+        assert!(ac.is_authorized("npub1owner"));
+    }
+
+    #[test]
+    fn test_personal_mode_stranger_rejected() {
+        let ac = AccessControl::personal("npub1owner");
+        assert!(!ac.is_authorized("npub1stranger"));
+    }
+
+    #[test]
+    fn test_personal_mode_authorize_and_revoke() {
+        let mut ac = AccessControl::personal("npub1owner");
+        ac.authorize("npub1friend");
+        assert!(ac.is_authorized("npub1friend"));
+        ac.revoke("npub1friend");
+        assert!(!ac.is_authorized("npub1friend"));
+    }
+
+    #[test]
+    fn test_service_mode_allows_everyone() {
+        let ac = AccessControl::service("npub1owner");
+        assert!(ac.is_authorized("npub1anyone"));
+        assert!(ac.is_authorized("npub1random"));
+    }
+
+    #[test]
+    fn test_serialization_roundtrip() {
+        let mut ac = AccessControl::personal("npub1owner");
+        ac.authorize("npub1a");
+        ac.authorize("npub1b");
+        let json = serde_json::to_string(&ac).unwrap();
+        let parsed: AccessControl = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.mode, AgentMode::Personal);
+        assert_eq!(parsed.owner, "npub1owner");
+        assert!(parsed.authorized.contains("npub1a"));
+        assert!(parsed.authorized.contains("npub1b"));
+    }
+
+    #[test]
+    fn test_default_reject_message() {
+        let ac = AccessControl::personal("npub1owner");
+        assert!(ac.reject_message.contains("not authorized"));
+    }
+}

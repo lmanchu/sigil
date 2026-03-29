@@ -143,3 +143,51 @@ pub enum Error {
     #[error("{0}")]
     Generic(String),
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_channel_info_serialization() {
+        let info = ChannelInfo {
+            name: "sigil-dev".into(),
+            about: Some("Development discussion".into()),
+            picture: None,
+        };
+        let json = serde_json::to_string(&info).unwrap();
+        let parsed: ChannelInfo = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.name, "sigil-dev");
+        assert_eq!(parsed.about.as_deref(), Some("Development discussion"));
+        assert!(parsed.picture.is_none());
+    }
+
+    #[test]
+    fn test_channel_info_minimal() {
+        let json = r#"{"name":"test"}"#;
+        let info: ChannelInfo = serde_json::from_str(json).unwrap();
+        assert_eq!(info.name, "test");
+        assert!(info.about.is_none());
+    }
+
+    #[test]
+    fn test_channel_info_skips_none_fields() {
+        let info = ChannelInfo {
+            name: "ch".into(),
+            about: None,
+            picture: None,
+        };
+        let json = serde_json::to_string(&info).unwrap();
+        assert!(!json.contains("about"));
+        assert!(!json.contains("picture"));
+    }
+
+    #[test]
+    fn test_channel_filter_kind() {
+        let id = EventId::all_zeros();
+        let filter = channel_filter(id);
+        // Filter should target kind:42 (ChannelMessage)
+        let json = filter.as_json();
+        assert!(json.contains("42"));
+    }
+}

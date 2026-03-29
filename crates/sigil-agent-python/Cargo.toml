@@ -1,6 +1,6 @@
 [package]
 name = "sigil-agent-python"
-version = "0.1.0"
+version = "0.5.0"
 edition = "2021"
 description = "Python bindings for Sigil agent SDK via PyO3"
 

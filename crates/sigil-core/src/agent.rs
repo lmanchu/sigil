@@ -225,3 +225,60 @@ pub enum Error {
     #[error("Signer error: {0}")]
     Signer(#[from] nostr_sdk::signer::SignerError),
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_new_agent_has_generated_keys() {
+        let agent = SigilAgent::new("test-bot", vec!["wss://relay.damus.io".into()]);
+        assert_eq!(agent.profile.name, "test-bot");
+        assert!(agent.profile.agent);
+        assert!(!agent.npub().is_empty());
+        assert!(agent.npub().starts_with("npub1"));
+    }
+
+    #[test]
+    fn test_from_key_roundtrip() {
+        let keys = Keys::generate();
+        let nsec = keys.secret_key().to_bech32().unwrap();
+        let agent = SigilAgent::from_key("keyed-bot", &nsec, vec![]).unwrap();
+        assert_eq!(agent.keys.public_key(), keys.public_key());
+    }
+
+    #[test]
+    fn test_from_key_invalid() {
+        let result = SigilAgent::from_key("bad", "not-a-key", vec![]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_agent_capabilities_default() {
+        let agent = SigilAgent::new("cap-bot", vec![]);
+        let caps = agent.profile.capabilities.as_ref().unwrap();
+        assert!(caps.skills.is_empty());
+        assert!(!caps.tui);
+        assert!(caps.framework.is_none());
+    }
+
+    #[test]
+    fn test_agent_profile_serialization() {
+        let profile = AgentProfile {
+            name: "test".into(),
+            about: Some("A test agent".into()),
+            picture: None,
+            agent: true,
+            capabilities: Some(AgentCapabilities {
+                skills: vec!["weather".into(), "translate".into()],
+                tui: true,
+                framework: Some("sigil".into()),
+            }),
+        };
+        let json = serde_json::to_string(&profile).unwrap();
+        let parsed: AgentProfile = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.name, "test");
+        assert!(parsed.agent);
+        assert_eq!(parsed.capabilities.unwrap().skills.len(), 2);
+    }
+}

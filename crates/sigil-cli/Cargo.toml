@@ -1,6 +1,6 @@
 [package]
 name = "sigil-cli"
-version = "0.4.0"
+version = "0.5.0"
 edition = "2021"
 description = "Terminal messenger client for Sigil — AI-Native Messenger built on Nostr"
 license = "MIT"
