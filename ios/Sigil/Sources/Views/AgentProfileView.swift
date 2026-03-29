@@ -1,5 +1,6 @@
 import SwiftUI
 import PhotosUI
+import UniformTypeIdentifiers
 #if canImport(UIKit)
 import UIKit
 #elseif canImport(AppKit)
@@ -14,6 +15,7 @@ struct AgentProfileView: View {
     @State private var editCodename = ""
     @State private var editAbout = ""
     @State private var selectedPhoto: PhotosPickerItem?
+    @State private var showFilePicker = false
 
     var body: some View {
         List {
@@ -165,55 +167,57 @@ struct AgentProfileView: View {
         .sheet(isPresented: $editingName) {
             NavigationStack {
                 Form {
-                    // Avatar picker inside edit sheet
+                    // Avatar picker
                     Section("Avatar") {
-                        HStack {
-                            Spacer()
-                            PhotosPicker(selection: $selectedPhoto, matching: .images) {
-                                ZStack {
-                                    #if canImport(UIKit)
-                                    if let data = agent.avatarData, let uiImage = UIImage(data: data) {
-                                        Image(uiImage: uiImage)
-                                            .resizable()
-                                            .scaledToFill()
-                                            .frame(width: 80, height: 80)
-                                            .clipShape(Circle())
-                                    } else {
-                                        Circle()
-                                            .fill(SigilTheme.agentAccent.opacity(0.15))
-                                            .frame(width: 80, height: 80)
-                                            .overlay(
-                                                Image(systemName: "cpu")
-                                                    .font(.system(size: 30))
-                                                    .foregroundStyle(SigilTheme.agentAccent)
-                                            )
-                                    }
-                                    #else
-                                    Circle()
-                                        .fill(SigilTheme.agentAccent.opacity(0.15))
-                                        .frame(width: 80, height: 80)
-                                    #endif
+                        VStack(spacing: 12) {
+                            // Current avatar preview
+                            #if canImport(UIKit)
+                            if let data = agent.avatarData, let uiImage = UIImage(data: data) {
+                                Image(uiImage: uiImage)
+                                    .resizable()
+                                    .scaledToFill()
+                                    .frame(width: 80, height: 80)
+                                    .clipShape(Circle())
+                            } else {
+                                Circle()
+                                    .fill(SigilTheme.agentAccent.opacity(0.15))
+                                    .frame(width: 80, height: 80)
+                                    .overlay(
+                                        Image(systemName: "cpu")
+                                            .font(.system(size: 30))
+                                            .foregroundStyle(SigilTheme.agentAccent)
+                                    )
+                            }
+                            #else
+                            Circle()
+                                .fill(SigilTheme.agentAccent.opacity(0.15))
+                                .frame(width: 80, height: 80)
+                            #endif
 
-                                    Circle()
-                                        .fill(SigilTheme.accent)
-                                        .frame(width: 26, height: 26)
-                                        .overlay(
-                                            Image(systemName: "camera.fill")
-                                                .font(.system(size: 11))
-                                                .foregroundStyle(.white)
-                                        )
-                                        .offset(x: 28, y: 28)
+                            // Two options: Photos or Files
+                            HStack(spacing: 16) {
+                                PhotosPicker(selection: $selectedPhoto, matching: .images) {
+                                    Label("Photos", systemImage: "photo")
+                                        .font(.subheadline)
                                 }
-                            }
-                            .onChange(of: selectedPhoto) { _, item in
-                                Task {
-                                    if let data = try? await item?.loadTransferable(type: Data.self) {
-                                        agent.avatarData = data
+                                .onChange(of: selectedPhoto) { _, item in
+                                    Task {
+                                        if let data = try? await item?.loadTransferable(type: Data.self) {
+                                            agent.avatarData = data
+                                        }
                                     }
                                 }
+
+                                Button {
+                                    showFilePicker = true
+                                } label: {
+                                    Label("Files", systemImage: "folder")
+                                        .font(.subheadline)
+                                }
                             }
-                            Spacer()
+                            .foregroundStyle(SigilTheme.accent)
                         }
+                        .frame(maxWidth: .infinity)
                     }
 
                     Section("Name") {
@@ -225,6 +229,20 @@ struct AgentProfileView: View {
                     Section("About") {
                         TextField("Description", text: $editAbout, axis: .vertical)
                             .lineLimit(3...6)
+                    }
+                }
+                .fileImporter(
+                    isPresented: $showFilePicker,
+                    allowedContentTypes: [.image],
+                    allowsMultipleSelection: false
+                ) { result in
+                    if case .success(let urls) = result, let url = urls.first {
+                        if url.startAccessingSecurityScopedResource() {
+                            defer { url.stopAccessingSecurityScopedResource() }
+                            if let data = try? Data(contentsOf: url) {
+                                agent.avatarData = data
+                            }
+                        }
                     }
                 }
                 .navigationTitle("Edit Profile")
