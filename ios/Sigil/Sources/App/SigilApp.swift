@@ -7,7 +7,17 @@ struct SigilApp: App {
 
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([UserProfile.self, AgentContact.self, ChatMessage.self])
-        let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
+        let useICloud = UserDefaults.standard.bool(forKey: "iCloudSyncEnabled")
+        let config: ModelConfiguration
+        if useICloud {
+            config = ModelConfiguration(
+                schema: schema,
+                isStoredInMemoryOnly: false,
+                cloudKitDatabase: .automatic
+            )
+        } else {
+            config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
+        }
         do {
             return try ModelContainer(for: schema, configurations: [config])
         } catch {

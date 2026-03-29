@@ -10,6 +10,8 @@ struct MyProfileView: View {
     @State private var avatarData: Data?
     @State private var showCopied = false
     @State private var showQRCard = false
+    @State private var iCloudSync = UserDefaults.standard.bool(forKey: "iCloudSyncEnabled")
+    @State private var showRestartAlert = false
 
     var body: some View {
         List {
@@ -137,6 +139,24 @@ struct MyProfileView: View {
                     .foregroundStyle(SigilTheme.accent)
             }
 
+            // iCloud Sync
+            Section {
+                Toggle(isOn: $iCloudSync) {
+                    Label("iCloud Sync", systemImage: "icloud")
+                }
+                .tint(SigilTheme.accent)
+                .onChange(of: iCloudSync) { _, newValue in
+                    UserDefaults.standard.set(newValue, forKey: "iCloudSyncEnabled")
+                    showRestartAlert = true
+                }
+            } header: {
+                Label("Sync", systemImage: "arrow.triangle.2.circlepath")
+                    .foregroundStyle(SigilTheme.accent)
+            } footer: {
+                Text("Syncs contacts, messages, and profile across your devices. Keys are included — only enable if you trust your iCloud account. Requires app restart.")
+                    .font(.caption)
+            }
+
             // Save
             Section {
                 Button {
@@ -164,6 +184,11 @@ struct MyProfileView: View {
                 title: displayName.isEmpty ? "Sigil User" : displayName,
                 subtitle: "Scan to add me on Sigil"
             )
+        }
+        .alert("Restart Required", isPresented: $showRestartAlert) {
+            Button("OK") {}
+        } message: {
+            Text("Please close and reopen Sigil for iCloud sync changes to take effect.")
         }
         .onAppear {
             displayName = nostrService.userDisplayName
