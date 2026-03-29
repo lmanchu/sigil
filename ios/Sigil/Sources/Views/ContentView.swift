@@ -15,22 +15,28 @@ struct ContentView: View {
                     agentList
                 }
             }
+            .background(SigilTheme.adaptiveBg.ignoresSafeArea())
             .navigationTitle("Sigil")
             .toolbar {
                 ToolbarItem(placement: .automatic) {
-                    HStack(spacing: 12) {
-                        Circle()
-                            .fill(nostrService.isConnected ? .green : .red)
-                            .frame(width: 8, height: 8)
-                        Button {
-                            showAddContact = true
-                        } label: {
-                            Image(systemName: "plus")
+                    HStack(spacing: 14) {
+                        // Connection status
+                        HStack(spacing: 6) {
+                            Circle()
+                                .fill(nostrService.isConnected ? SigilTheme.online : SigilTheme.danger)
+                                .frame(width: 7, height: 7)
+                            Text(nostrService.isConnected ? "Connected" : "Offline")
+                                .font(.caption2)
+                                .foregroundStyle(SigilTheme.adaptiveTextSecondary)
                         }
-                        Button {
-                            showQRScanner = true
-                        } label: {
+
+                        Button { showAddContact = true } label: {
+                            Image(systemName: "plus.circle")
+                                .font(.title3)
+                        }
+                        Button { showQRScanner = true } label: {
                             Image(systemName: "qrcode.viewfinder")
+                                .font(.title3)
                         }
                     }
                 }
@@ -43,15 +49,11 @@ struct ContentView: View {
                 Button("Add") {
                     let npub = manualNpub.trimmingCharacters(in: .whitespacesAndNewlines)
                     if !npub.isEmpty {
-                        nostrService.addAgent(AgentContact(
-                            npub: npub,
-                            name: "Agent",
-                            isAgent: true
-                        ))
+                        nostrService.addAgent(AgentContact(npub: npub, name: "Agent", isAgent: true))
                         manualNpub = ""
                     }
                 }
-                Button("Echo Agent (Debug)") {
+                Button("Echo Agent") {
                     nostrService.addAgent(AgentContact(
                         npub: "npub13yuvfydn8g825p2w8nrp3a9vuh3ymc5cftyt433hzr3xzj7ppxms7jc060",
                         name: "Echo Agent",
@@ -60,7 +62,7 @@ struct ContentView: View {
                 }
                 Button("Cancel", role: .cancel) {}
             } message: {
-                Text("Enter an agent's npub or tap Echo Agent to test")
+                Text("Enter npub or add the echo agent for testing")
             }
             .task {
                 await nostrService.connect()
@@ -68,75 +70,149 @@ struct ContentView: View {
         }
     }
 
+    // MARK: - Empty State
+
     private var emptyState: some View {
-        VStack(spacing: 20) {
-            Image(systemName: "bubble.left.and.bubble.right")
-                .font(.system(size: 60))
-                .foregroundStyle(.secondary)
+        VStack(spacing: 24) {
+            Spacer()
 
-            Text("No Agents Yet")
-                .font(.title2)
-                .fontWeight(.semibold)
+            // Animated glyph
+            ZStack {
+                Circle()
+                    .fill(SigilTheme.accent.opacity(0.08))
+                    .frame(width: 120, height: 120)
+                Circle()
+                    .fill(SigilTheme.accent.opacity(0.15))
+                    .frame(width: 80, height: 80)
+                Image(systemName: "bubble.left.and.text.bubble.right")
+                    .font(.system(size: 36))
+                    .foregroundStyle(SigilTheme.accent)
+            }
 
-            Text("Scan an agent's QR code to start chatting")
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
+            VStack(spacing: 8) {
+                Text("No Conversations")
+                    .font(.title2)
+                    .fontWeight(.bold)
+                    .foregroundStyle(SigilTheme.adaptiveText)
 
-            Button {
-                showQRScanner = true
-            } label: {
-                Label("Scan QR Code", systemImage: "qrcode.viewfinder")
-                    .font(.headline)
-                    .padding()
-                    .frame(maxWidth: .infinity)
-                    .background(.blue)
-                    .foregroundStyle(.white)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                Text("Add an agent to start an encrypted conversation")
+                    .font(.subheadline)
+                    .foregroundStyle(SigilTheme.adaptiveTextSecondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 40)
+            }
+
+            VStack(spacing: 12) {
+                Button { showQRScanner = true } label: {
+                    Label("Scan QR Code", systemImage: "qrcode.viewfinder")
+                        .font(.headline)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                        .background(SigilTheme.accent)
+                        .foregroundStyle(.black)
+                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                }
+
+                Button { showAddContact = true } label: {
+                    Label("Add Manually", systemImage: "plus")
+                        .font(.headline)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                        .background(SigilTheme.adaptiveCard)
+                        .foregroundStyle(SigilTheme.accent)
+                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 14)
+                                .stroke(SigilTheme.accent.opacity(0.3), lineWidth: 1)
+                        )
+                }
             }
             .padding(.horizontal, 40)
+
+            Spacer()
+            Spacer()
         }
     }
+
+    // MARK: - Agent List
 
     private var agentList: some View {
         List(nostrService.agents) { agent in
             NavigationLink(destination: ChatView(agent: agent)) {
-                HStack(spacing: 12) {
-                    ZStack {
-                        Circle()
-                            .fill(.blue.opacity(0.15))
-                            .frame(width: 44, height: 44)
-                        Text(agent.isAgent ? "🤖" : "👤")
-                            .font(.title2)
-                    }
+                AgentRow(agent: agent, lastMessage: nostrService.messages[agent.npub]?.last)
+            }
+            .listRowBackground(Color.clear)
+            .listRowSeparatorTint(SigilTheme.adaptiveTextSecondary.opacity(0.15))
+        }
+        .listStyle(.plain)
+    }
+}
 
-                    VStack(alignment: .leading, spacing: 2) {
-                        HStack {
-                            Text(agent.name)
-                                .fontWeight(.medium)
-                            if agent.isAgent {
-                                Text("AGENT")
-                                    .font(.caption2)
-                                    .fontWeight(.bold)
-                                    .padding(.horizontal, 6)
-                                    .padding(.vertical, 2)
-                                    .background(.blue.opacity(0.15))
-                                    .foregroundStyle(.blue)
-                                    .clipShape(Capsule())
-                            }
-                        }
+// MARK: - Agent Row
 
-                        if let lastMsg = nostrService.messages[agent.npub]?.last {
-                            Text(lastMsg.isTui ? "[Interactive Message]" : lastMsg.content)
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                                .lineLimit(1)
-                        }
-                    }
+struct AgentRow: View {
+    let agent: AgentContact
+    let lastMessage: ChatMessage?
 
-                    Spacer()
+    var body: some View {
+        HStack(spacing: 14) {
+            // Avatar
+            ZStack {
+                Circle()
+                    .fill(
+                        agent.isAgent
+                            ? SigilTheme.agentAccent.opacity(0.15)
+                            : SigilTheme.accent.opacity(0.1)
+                    )
+                    .frame(width: 48, height: 48)
+
+                if agent.isAgent {
+                    Image(systemName: "cpu")
+                        .font(.system(size: 20))
+                        .foregroundStyle(SigilTheme.agentAccent)
+                } else {
+                    Image(systemName: "person.fill")
+                        .font(.system(size: 20))
+                        .foregroundStyle(SigilTheme.accent)
                 }
-                .padding(.vertical, 4)
+            }
+
+            // Name + last message
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 6) {
+                    Text(agent.name)
+                        .font(.body)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(SigilTheme.adaptiveText)
+
+                    if agent.isAgent {
+                        Text("AGENT")
+                            .font(.system(size: 9, weight: .bold, design: .monospaced))
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 2)
+                            .background(SigilTheme.agentAccent.opacity(0.2))
+                            .foregroundStyle(SigilTheme.agentAccent)
+                            .clipShape(RoundedRectangle(cornerRadius: 4))
+                    }
+                }
+
+                if let msg = lastMessage {
+                    Text(msg.isTui ? "Interactive message" : msg.content)
+                        .font(.subheadline)
+                        .foregroundStyle(SigilTheme.adaptiveTextSecondary)
+                        .lineLimit(1)
+                }
+            }
+
+            Spacer()
+
+            // Timestamp
+            if let msg = lastMessage {
+                Text(msg.timestamp, style: .time)
+                    .font(.caption2)
+                    .foregroundStyle(SigilTheme.adaptiveTextSecondary)
             }
         }
+        .padding(.vertical, 6)
     }
 }

@@ -10,78 +10,90 @@ struct AgentProfileView: View {
 
     var body: some View {
         List {
-            // Avatar + Name
+            // Header
             Section {
-                HStack(spacing: 16) {
+                VStack(spacing: 16) {
+                    // Avatar
                     ZStack {
                         Circle()
-                            .fill(agent.isAgent ? .blue.opacity(0.15) : .green.opacity(0.15))
-                            .frame(width: 72, height: 72)
-                        Text(agent.isAgent ? "🤖" : "👤")
+                            .fill(
+                                agent.isAgent
+                                    ? SigilTheme.agentAccent.opacity(0.12)
+                                    : SigilTheme.accent.opacity(0.1)
+                            )
+                            .frame(width: 88, height: 88)
+
+                        Image(systemName: agent.isAgent ? "cpu" : "person.fill")
                             .font(.system(size: 36))
+                            .foregroundStyle(agent.isAgent ? SigilTheme.agentAccent : SigilTheme.accent)
                     }
 
-                    VStack(alignment: .leading, spacing: 4) {
-                        HStack {
+                    VStack(spacing: 6) {
+                        HStack(spacing: 8) {
                             Text(agent.name)
                                 .font(.title2)
                                 .fontWeight(.bold)
+                                .foregroundStyle(SigilTheme.adaptiveText)
+
                             if agent.isAgent {
                                 Text("AGENT")
-                                    .font(.caption2)
-                                    .fontWeight(.bold)
+                                    .font(.system(size: 10, weight: .bold, design: .monospaced))
                                     .padding(.horizontal, 6)
-                                    .padding(.vertical, 2)
-                                    .background(.blue.opacity(0.15))
-                                    .foregroundStyle(.blue)
-                                    .clipShape(Capsule())
+                                    .padding(.vertical, 3)
+                                    .background(SigilTheme.agentAccent.opacity(0.2))
+                                    .foregroundStyle(SigilTheme.agentAccent)
+                                    .clipShape(RoundedRectangle(cornerRadius: 4))
                             }
                         }
 
                         if let about = agent.about {
                             Text(about)
                                 .font(.subheadline)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(SigilTheme.adaptiveTextSecondary)
+                                .multilineTextAlignment(.center)
                         }
                     }
                 }
-                .padding(.vertical, 8)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
             }
 
             // Identity
-            Section("Identity") {
-                LabeledContent("npub") {
-                    Text(agent.shortNpub)
-                        .font(.caption)
-                        .monospaced()
-                }
+            Section {
+                VStack(alignment: .leading, spacing: 12) {
+                    ProfileRow(icon: "key.fill", label: "npub", value: agent.shortNpub, mono: true)
 
-                if let relay = agent.relay {
-                    LabeledContent("Relay") {
-                        Text(relay)
-                            .font(.caption)
+                    if let relay = agent.relay {
+                        ProfileRow(icon: "antenna.radiowaves.left.and.right", label: "Relay", value: relay, mono: true)
                     }
-                }
 
-                if let framework = agent.framework {
-                    LabeledContent("Framework") {
-                        Text(framework)
-                            .font(.caption)
+                    if let framework = agent.framework {
+                        ProfileRow(icon: "hammer.fill", label: "Framework", value: framework)
                     }
-                }
 
-                LabeledContent("Added") {
-                    Text(agent.addedAt, style: .date)
+                    ProfileRow(icon: "calendar", label: "Added", value: agent.addedAt.formatted(date: .abbreviated, time: .omitted))
                 }
+            } header: {
+                Label("Identity", systemImage: "shield.fill")
+                    .foregroundStyle(SigilTheme.accent)
             }
 
             // Capabilities
             if let caps = agent.capabilities, !caps.isEmpty {
-                Section("Capabilities") {
+                Section {
                     ForEach(caps, id: \.self) { cap in
-                        Label(cap, systemImage: "checkmark.circle.fill")
-                            .foregroundStyle(.green)
+                        HStack(spacing: 10) {
+                            Image(systemName: "checkmark.seal.fill")
+                                .font(.caption)
+                                .foregroundStyle(SigilTheme.online)
+                            Text(cap)
+                                .font(.subheadline)
+                                .foregroundStyle(SigilTheme.adaptiveText)
+                        }
                     }
+                } header: {
+                    Label("Capabilities", systemImage: "cpu")
+                        .foregroundStyle(SigilTheme.agentAccent)
                 }
             }
 
@@ -96,6 +108,7 @@ struct AgentProfileView: View {
                     #endif
                 } label: {
                     Label("Copy npub", systemImage: "doc.on.doc")
+                        .foregroundStyle(SigilTheme.accent)
                 }
 
                 if agent.isAgent {
@@ -103,6 +116,7 @@ struct AgentProfileView: View {
                         // TODO: remove agent
                     } label: {
                         Label("Remove Agent", systemImage: "trash")
+                            .foregroundStyle(SigilTheme.danger)
                     }
                 }
             }
@@ -111,5 +125,33 @@ struct AgentProfileView: View {
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
         #endif
+    }
+}
+
+// MARK: - Profile Row
+
+struct ProfileRow: View {
+    let icon: String
+    let label: String
+    let value: String
+    var mono: Bool = false
+
+    var body: some View {
+        HStack {
+            Image(systemName: icon)
+                .font(.caption)
+                .foregroundStyle(SigilTheme.adaptiveTextSecondary)
+                .frame(width: 20)
+
+            Text(label)
+                .font(.subheadline)
+                .foregroundStyle(SigilTheme.adaptiveTextSecondary)
+
+            Spacer()
+
+            Text(value)
+                .font(mono ? .system(.caption, design: .monospaced) : .subheadline)
+                .foregroundStyle(SigilTheme.adaptiveText)
+        }
     }
 }
