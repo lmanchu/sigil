@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.5.0 — 2026-03-29 (Day 2)
+
+### Hermes Bridge Agent
+- `cargo run --example hermes_bridge` — bridges 155+ Hermes/OpenClaw skills to Sigil
+- Any Nostr user can DM the bridge and get responses from:
+  - OpenClaw skills: wells (finance), pm (product), research, todo, social-content
+  - Hermes builtins: github, linear, polymarket, imessage, apple-notes
+  - Code execution, browser automation, and more
+- TUI menu with skill categories, info table
+- Auto-detects skill context (polymarket, github, linear) from message content
+- Uses `hermes chat -q "..." -Q --yolo` for non-interactive execution
+
 ## v0.4.0 — 2026-03-28 (Day 1, session 2 continued)
 
 ### NIP-28 Group Chat
