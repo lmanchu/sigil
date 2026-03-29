@@ -192,7 +192,7 @@ class NostrService: ObservableObject {
     // MARK: - Send Message
 
     func sendMessage(to npub: String, content: String) async {
-        guard let client = client, let signer = signer else { return }
+        guard let client = client, let signer = signer, let keys = keys else { return }
 
         do {
             let recipient = try PublicKey.parse(publicKey: npub)
@@ -203,9 +203,10 @@ class NostrService: ObservableObject {
             let tag = Tag.publicKey(publicKey: recipient)
             let builder = EventBuilder(kind: Kind(kind: 4), content: encrypted)
                 .tags(tags: [tag])
+            let event = try builder.signWithKeys(keys: keys)
 
-            // Use sendEventBuilder — client signs with its signer
-            _ = try await client.sendEventBuilder(builder: builder)
+            let output = try await client.sendEvent(event: event)
+            print("Send result: success=\(output.success.count), failed=\(output.failed.count)")
 
             let msg = ChatMessage(
                 messageId: UUID().uuidString,

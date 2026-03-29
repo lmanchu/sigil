@@ -31,6 +31,9 @@ struct ChatView: View {
                     .padding(.vertical, 8)
                 }
                 .background(SigilTheme.adaptiveBg)
+                #if os(iOS)
+                .scrollDismissesKeyboard(.interactively)
+                #endif
                 .onChange(of: messages.count) { _, _ in
                     if let lastId = messages.last?.messageId {
                         withAnimation(.easeOut(duration: 0.2)) {
@@ -44,14 +47,17 @@ struct ChatView: View {
 
             // Input bar
             HStack(spacing: 10) {
-                TextField("Message...", text: $inputText, axis: .vertical)
+                TextField("Message...", text: $inputText)
                     .textFieldStyle(.plain)
                     .focused($isInputFocused)
-                    .lineLimit(1...4)
                     .padding(.horizontal, 14)
                     .padding(.vertical, 10)
                     .background(SigilTheme.adaptiveBgSecondary)
                     .clipShape(RoundedRectangle(cornerRadius: 22))
+                    .onSubmit {
+                        sendMessage()
+                    }
+                    .submitLabel(.send)
 
                 Button { sendMessage() } label: {
                     Image(systemName: "arrow.up.circle.fill")
