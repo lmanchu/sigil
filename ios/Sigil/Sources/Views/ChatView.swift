@@ -34,6 +34,11 @@ struct ChatView: View {
                 #if os(iOS)
                 .scrollDismissesKeyboard(.interactively)
                 #endif
+                .onAppear {
+                    if let lastId = messages.last?.messageId {
+                        proxy.scrollTo(lastId, anchor: .bottom)
+                    }
+                }
                 .onChange(of: messages.count) { _, _ in
                     if let lastId = messages.last?.messageId {
                         withAnimation(.easeOut(duration: 0.2)) {
