@@ -274,6 +274,12 @@ class NostrService: ObservableObject {
         }
     }
 
+    func saveContact(_ contact: AgentContact) {
+        guard let context = modelContext else { return }
+        try? context.save()
+        objectWillChange.send()
+    }
+
     // MARK: - QR Parsing
 
     func addAgentFromQR(_ uri: String) -> Bool {

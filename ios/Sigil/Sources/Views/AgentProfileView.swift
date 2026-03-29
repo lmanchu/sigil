@@ -6,7 +6,12 @@ import AppKit
 #endif
 
 struct AgentProfileView: View {
+    @EnvironmentObject var nostrService: NostrService
     let agent: AgentContact
+    @State private var editingName = false
+    @State private var editName = ""
+    @State private var editCodename = ""
+    @State private var editAbout = ""
 
     var body: some View {
         List {
@@ -30,7 +35,7 @@ struct AgentProfileView: View {
 
                     VStack(spacing: 6) {
                         HStack(spacing: 8) {
-                            Text(agent.name)
+                            Text(agent.displayName)
                                 .font(.title2)
                                 .fontWeight(.bold)
                                 .foregroundStyle(SigilTheme.adaptiveText)
@@ -46,11 +51,29 @@ struct AgentProfileView: View {
                             }
                         }
 
+                        if agent.codename != nil && agent.codename != agent.name {
+                            Text(agent.name)
+                                .font(.caption)
+                                .foregroundStyle(SigilTheme.adaptiveTextSecondary)
+                        }
+
                         if let about = agent.about {
                             Text(about)
                                 .font(.subheadline)
                                 .foregroundStyle(SigilTheme.adaptiveTextSecondary)
                                 .multilineTextAlignment(.center)
+                        }
+
+                        // Edit button
+                        Button {
+                            editName = agent.name
+                            editCodename = agent.codename ?? ""
+                            editAbout = agent.about ?? ""
+                            editingName = true
+                        } label: {
+                            Label("Edit", systemImage: "pencil")
+                                .font(.caption)
+                                .foregroundStyle(SigilTheme.accent)
                         }
                     }
                 }
@@ -137,6 +160,41 @@ struct AgentProfileView: View {
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
         #endif
+        .sheet(isPresented: $editingName) {
+            NavigationStack {
+                Form {
+                    Section("Name") {
+                        TextField("Name", text: $editName)
+                    }
+                    Section("Codename / Nickname") {
+                        TextField("e.g. D.Gloria, Hermes", text: $editCodename)
+                    }
+                    Section("About") {
+                        TextField("Description", text: $editAbout, axis: .vertical)
+                            .lineLimit(3...6)
+                    }
+                }
+                .navigationTitle("Edit Profile")
+                #if os(iOS)
+                .navigationBarTitleDisplayMode(.inline)
+                #endif
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Cancel") { editingName = false }
+                    }
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Save") {
+                            agent.name = editName
+                            agent.codename = editCodename.isEmpty ? nil : editCodename
+                            agent.about = editAbout.isEmpty ? nil : editAbout
+                            nostrService.saveContact(agent)
+                            editingName = false
+                        }
+                        .fontWeight(.bold)
+                    }
+                }
+            }
+        }
     }
 }
 
