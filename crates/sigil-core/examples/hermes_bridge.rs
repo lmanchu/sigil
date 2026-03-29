@@ -14,6 +14,7 @@ use nostr_sdk::prelude::*;
 use sigil_core::access::AccessControl;
 use sigil_core::guard::{EventDedup, RateLimiter};
 use sigil_core::qr::AgentQrData;
+use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
 use tokio::process::Command as TokioCommand;
@@ -24,15 +25,20 @@ fn key_path() -> PathBuf {
     dir.join("hermes-bridge.key")
 }
 
-async fn call_hermes(query: &str) -> String {
-    // NO --yolo: hermes will skip tools that need approval
-    // Restricted toolsets: clarify, delegation (no shell, no file write)
+/// Call hermes with optional session resume for multi-turn conversations.
+/// Returns (response_text, session_id).
+async fn call_hermes(query: &str, session_id: Option<&str>) -> (String, Option<String>) {
+    let mut args = vec!["chat", "-q", query, "-Q", "-t", "clarify,delegation,browser"];
+
+    let session_flag;
+    if let Some(sid) = session_id {
+        session_flag = sid.to_string();
+        args.push("--resume");
+        args.push(&session_flag);
+    }
+
     let result = TokioCommand::new("hermes")
-        .args([
-            "chat", "-q", query,
-            "-Q",                                    // quiet mode
-            "-t", "clarify,delegation,browser",      // safe toolsets only
-        ])
+        .args(&args)
         .output()
         .await;
 
@@ -40,20 +46,38 @@ async fn call_hermes(query: &str) -> String {
         Ok(output) => {
             let stdout = String::from_utf8_lossy(&output.stdout).to_string();
             let response = stdout.trim().to_string();
-            if response.is_empty() {
+
+            // Extract session_id from output (last line: "session_id: XXXXX")
+            let new_session_id = response
+                .lines()
+                .rev()
+                .find(|l| l.starts_with("session_id:"))
+                .map(|l| l.strip_prefix("session_id:").unwrap_or("").trim().to_string());
+
+            // Remove the session_id line from the response
+            let clean_response: String = response
+                .lines()
+                .filter(|l| !l.starts_with("session_id:"))
+                .collect::<Vec<_>>()
+                .join("\n")
+                .trim()
+                .to_string();
+
+            if clean_response.is_empty() {
                 let stderr = String::from_utf8_lossy(&output.stderr).to_string();
                 if !stderr.is_empty() {
-                    format!("(hermes error: {})", stderr.lines().last().unwrap_or("unknown"))
+                    (format!("(hermes error: {})", stderr.lines().last().unwrap_or("unknown")), new_session_id)
                 } else {
-                    "(no response)".to_string()
+                    ("(no response)".to_string(), new_session_id)
                 }
-            } else if response.len() > 2000 {
-                format!("{}...\n\n(truncated)", &response[..2000])
+            } else if clean_response.len() > 2000 {
+                let truncated: String = clean_response.chars().take(2000).collect();
+                (format!("{}...\n\n(truncated)", truncated), new_session_id)
             } else {
-                response
+                (clean_response, new_session_id)
             }
         }
-        Err(e) => format!("Failed to call hermes: {}", e),
+        Err(e) => (format!("Failed to call hermes: {}", e), None),
     }
 }
 
@@ -62,7 +86,7 @@ fn build_skill_menu() -> String {
 }
 
 fn build_info_table() -> String {
-    r#"{"type":"table","title":"Hermes Bridge Agent","rows":[["Engine","Hermes Agent v0.4.0"],["Skills","155+ (OpenClaw + Hermes builtin)"],["Model","Claude Sonnet 4.5 (via CLIProxy)"],["Protocol","Nostr NIP-04 E2E Encrypted"],["Mode","Quiet + YOLO (auto-approve tools)"]]}"#.to_string()
+    r#"{"type":"table","title":"Hermes Bridge Agent","rows":[["Engine","Hermes Agent v0.4.0"],["Skills","155+ (OpenClaw + Hermes builtin)"],["Model","Claude Sonnet 4.5 (via CLIProxy)"],["Protocol","Nostr NIP-04 E2E Encrypted"],["Security","Personal mode + rate limit + sandboxed tools"],["Sessions","Multi-turn with memory per user"]]}"#.to_string()
 }
 
 #[tokio::main]
@@ -145,12 +169,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("  config: ~/.sigil/hermes-bridge.access.json");
     println!("  QR:     {}", qr.to_uri());
     println!();
-    println!("  guard:  rate=10/min, dedup=10K events, no --yolo");
+    println!("  guard:  rate=10/min, dedup=10K events, sandboxed tools");
+    println!("  sessions: multi-turn per user (hermes --resume)");
     println!();
     println!("Listening...");
     println!();
 
     let mut notifications = client.notifications();
+    // Per-sender session tracking for multi-turn conversations
+    let mut sessions: HashMap<String, String> = HashMap::new();
     let mut rate_limiter = RateLimiter::default_agent();
     let mut dedup = EventDedup::default_agent();
 
@@ -239,10 +266,34 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 } else if lower == "skills" || lower == "/skills" {
                     "Categories: research, github, linear, polymarket, wells, pm, todo, social-content, apple-notes, imessage, code-execution, browser, and 140+ more. Just ask!".to_string()
                 } else {
-                    // Route to Hermes (async!)
-                    println!("[{}] Calling hermes...", sender_short);
-                    let response = call_hermes(&content).await;
-                    println!("[{}] ← {}...", sender_short, &response[..response.len().min(60)]);
+                    // Send thinking indicator immediately
+                    let thinking = "🧠";
+                    if let Ok(enc) = nip04::encrypt(keys.secret_key(), &sender, thinking) {
+                        let tag = Tag::public_key(sender);
+                        if let Ok(ev) = EventBuilder::new(Kind::EncryptedDirectMessage, enc)
+                            .tag(tag)
+                            .sign(&keys)
+                            .await
+                        {
+                            let _ = client.send_event(ev).await;
+                        }
+                    }
+
+                    // Route to Hermes with session continuity
+                    let existing_session = sessions.get(&sender_npub).map(|s| s.as_str());
+                    println!("[{}] Calling hermes (session: {:?})...", sender_short,
+                        existing_session.map(|s| &s[..s.len().min(10)]));
+
+                    let (response, new_session_id) = call_hermes(&content, existing_session).await;
+
+                    // Save session for next message from this sender
+                    if let Some(sid) = new_session_id {
+                        println!("[{}] Session: {}", sender_short, sid);
+                        sessions.insert(sender_npub.clone(), sid);
+                    }
+
+                    let resp_preview: String = response.chars().take(60).collect();
+                    println!("[{}] ← {}...", sender_short, resp_preview);
                     response
                 };
 

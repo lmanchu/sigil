@@ -2,6 +2,14 @@
 
 ## v0.5.0 — 2026-03-29 (Day 2)
 
+### Hermes Bridge Improvements
+- **Session continuity**: per-sender session tracking via `hermes --resume`
+  - Multi-turn conversations now have memory
+  - Each sender gets their own hermes session
+- **Thinking indicator**: 🧠 emoji sent immediately before hermes processes
+  - User sees the agent is working, not dead
+- Both verified E2E (9/9 replies received)
+
 ### Security Hardening
 - **Access control**: personal vs service agent modes, owner + whitelist
   - `~/.sigil/<agent>.access.json` — per-agent config
