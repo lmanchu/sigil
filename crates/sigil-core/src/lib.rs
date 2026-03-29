@@ -10,12 +10,16 @@
 //!   ├── qr.rs        — QR code generation for agent onboarding
 //!   ├── channel.rs   — NIP-28 public channel (group chat)
 //!   ├── registry.rs  — Agent registry (kind:31990, discovery)
-//!   └── file.rs      — File sharing (NIP-94, nostr.build upload)
+//!   ├── file.rs      — File sharing (NIP-94, nostr.build upload)
+//!   ├── access.rs    — Access control (personal/service agent modes)
+//!   └── guard.rs     — Rate limiting, dedup, key encryption
 //! ```
 
+pub mod access;
 pub mod agent;
 pub mod channel;
 pub mod file;
+pub mod guard;
 pub mod message;
 pub mod qr;
 pub mod registry;

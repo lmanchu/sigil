@@ -1,11 +1,18 @@
 //! Hermes Bridge Agent — connects Hermes Agent's 155+ skills to Sigil
 //!
-//! Receives Nostr DMs, routes to `hermes chat -q "..." -Q --yolo`,
-//! sends the response back via Sigil.
+//! PERSONAL AGENT — security hardened:
+//! - Access control: only owner + authorized npubs (whitelist)
+//! - Rate limiting: 10 messages/minute per sender
+//! - Dedup: prevents replay of already-processed events
+//! - Tool sandboxing: no --yolo, restricted to safe toolsets
+//! - Key encryption: passphrase-protected key storage
 //!
+//! Config: ~/.sigil/hermes-bridge.access.json
 //! Run: cargo run --example hermes_bridge
 
 use nostr_sdk::prelude::*;
+use sigil_core::access::AccessControl;
+use sigil_core::guard::{EventDedup, RateLimiter};
 use sigil_core::qr::AgentQrData;
 use std::fs;
 use std::path::PathBuf;
@@ -18,8 +25,14 @@ fn key_path() -> PathBuf {
 }
 
 async fn call_hermes(query: &str) -> String {
+    // NO --yolo: hermes will skip tools that need approval
+    // Restricted toolsets: clarify, delegation (no shell, no file write)
     let result = TokioCommand::new("hermes")
-        .args(["chat", "-q", query, "-Q", "--yolo"])
+        .args([
+            "chat", "-q", query,
+            "-Q",                                    // quiet mode
+            "-t", "clarify,delegation,browser",      // safe toolsets only
+        ])
         .output()
         .await;
 
@@ -71,6 +84,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         k
     };
 
+    // Load access control — default to personal mode
+    // Owner = user's npub from ~/.sigil/user.key (if exists), otherwise agent's own npub
+    let owner_npub = {
+        let user_key_path = dirs::home_dir().unwrap().join(".sigil/user.key");
+        if user_key_path.exists() {
+            let sk = fs::read_to_string(&user_key_path).unwrap_or_default();
+            Keys::parse(sk.trim())
+                .map(|k| k.public_key().to_bech32().unwrap_or_default())
+                .unwrap_or_else(|_| keys.public_key().to_bech32().unwrap_or_default())
+        } else {
+            keys.public_key().to_bech32().unwrap_or_default()
+        }
+    };
+    let access = AccessControl::load("hermes-bridge", &owner_npub);
+
     let client = Client::new(keys.clone());
     client.add_relay(&relay).await?;
     client.connect().await;
@@ -100,6 +128,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         capabilities: vec!["research".into(), "github".into(), "finance".into()],
     };
 
+    let mode_str = match access.mode {
+        sigil_core::access::AgentMode::Personal => format!("PERSONAL (owner + {} authorized)", access.authorized.len()),
+        sigil_core::access::AgentMode::Service => "SERVICE (open to all)".to_string(),
+    };
+
     println!("╔══════════════════════════════════════════╗");
     println!("║  Sigil × Hermes Bridge Agent             ║");
     println!("║  155+ skills via encrypted Nostr DM       ║");
@@ -107,16 +140,29 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!();
     println!("  npub:   {}", keys.public_key().to_bech32()?);
     println!("  relay:  {}", relay);
+    println!("  mode:   {}", mode_str);
+    println!("  owner:  {}...", &owner_npub[..20.min(owner_npub.len())]);
+    println!("  config: ~/.sigil/hermes-bridge.access.json");
     println!("  QR:     {}", qr.to_uri());
+    println!();
+    println!("  guard:  rate=10/min, dedup=10K events, no --yolo");
     println!();
     println!("Listening...");
     println!();
 
     let mut notifications = client.notifications();
+    let mut rate_limiter = RateLimiter::default_agent();
+    let mut dedup = EventDedup::default_agent();
 
     loop {
         match notifications.recv().await {
             Ok(RelayPoolNotification::Event { event, .. }) => {
+                // DEDUP: skip already-processed events
+                let event_id = event.id.to_hex();
+                if !dedup.check_new(&event_id) {
+                    continue;
+                }
+
                 let (sender, content) = match event.kind {
                     Kind::EncryptedDirectMessage => {
                         let sender = event.pubkey;
@@ -134,12 +180,49 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     _ => continue,
                 };
 
-                let sender_short = sender.to_bech32().unwrap_or_default();
-                let sender_short = if sender_short.len() > 20 {
-                    format!("{}...", &sender_short[..20])
+                let sender_npub = sender.to_bech32().unwrap_or_default();
+                let sender_short = if sender_npub.len() > 20 {
+                    format!("{}...", &sender_npub[..20])
                 } else {
-                    sender_short.clone()
+                    sender_npub.clone()
                 };
+
+                // ACCESS CONTROL CHECK
+                if !access.is_authorized(&sender_npub) {
+                    println!("[{}] DENIED (unauthorized)", sender_short);
+                    // Send rejection message
+                    if let Ok(encrypted) = nip04::encrypt(keys.secret_key(), &sender, &access.reject_message) {
+                        let tag = Tag::public_key(sender);
+                        if let Ok(ev) = EventBuilder::new(Kind::EncryptedDirectMessage, encrypted)
+                            .tag(tag)
+                            .sign(&keys)
+                            .await
+                        {
+                            let _ = client.send_event(ev).await;
+                        }
+                    }
+                    continue;
+                }
+
+                // RATE LIMIT CHECK
+                if !rate_limiter.check(&sender_npub) {
+                    println!("[{}] RATE LIMITED", sender_short);
+                    let msg = format!(
+                        "Rate limit exceeded. Please wait before sending more messages. ({} remaining)",
+                        rate_limiter.remaining(&sender_npub)
+                    );
+                    if let Ok(encrypted) = nip04::encrypt(keys.secret_key(), &sender, &msg) {
+                        let tag = Tag::public_key(sender);
+                        if let Ok(ev) = EventBuilder::new(Kind::EncryptedDirectMessage, encrypted)
+                            .tag(tag)
+                            .sign(&keys)
+                            .await
+                        {
+                            let _ = client.send_event(ev).await;
+                        }
+                    }
+                    continue;
+                }
 
                 println!("[{}] → {}", sender_short, &content[..content.len().min(60)]);
 

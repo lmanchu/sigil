@@ -2,6 +2,20 @@
 
 ## v0.5.0 — 2026-03-29 (Day 2)
 
+### Security Hardening
+- **Access control**: personal vs service agent modes, owner + whitelist
+  - `~/.sigil/<agent>.access.json` — per-agent config
+  - Unauthorized users get polite rejection, never see agent output
+- **Key encryption**: `sigil encrypt-key` / `sigil decrypt-key`
+  - Passphrase-protected key storage (scrypt+SHA-256)
+  - Prevents casual reading of nsec from disk
+- **Rate limiting**: 10 messages/minute per sender (configurable)
+- **Event dedup**: tracks 10K event IDs, prevents relay replay attacks
+- **Tool sandboxing**: hermes bridge no longer uses `--yolo`
+  - Restricted to safe toolsets (clarify, delegation, browser)
+  - No shell execution, no file writes from remote users
+- Unit tests for all guard modules (rate limiter, dedup, encryption)
+
 ### Hermes Bridge Agent
 - `cargo run --example hermes_bridge` — bridges 155+ Hermes/OpenClaw skills to Sigil
 - Any Nostr user can DM the bridge and get responses from:

@@ -105,6 +105,10 @@ enum Commands {
         #[arg(short, long, default_value = "wss://relay.damus.io")]
         relay: String,
     },
+    /// Encrypt your key file with a passphrase
+    EncryptKey,
+    /// Remove encryption from your key file
+    DecryptKey,
 }
 
 #[tokio::main]
@@ -112,6 +116,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cli = Cli::parse();
 
     match cli.command {
+        Some(Commands::EncryptKey) => {
+            identity::encrypt_key_file();
+            Ok(())
+        }
+        Some(Commands::DecryptKey) => {
+            identity::decrypt_key_file();
+            Ok(())
+        }
         Some(Commands::Add { address, name }) => {
             cmd_add(&address, name.as_deref());
             Ok(())
