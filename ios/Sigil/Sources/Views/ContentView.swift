@@ -4,6 +4,7 @@ struct ContentView: View {
     @EnvironmentObject var nostrService: NostrService
     @State private var showQRScanner = false
     @State private var showAddContact = false
+    @State private var showMyProfile = false
     @State private var manualNpub = ""
 
     var body: some View {
@@ -20,7 +21,6 @@ struct ContentView: View {
             .toolbar {
                 ToolbarItem(placement: .automatic) {
                     HStack(spacing: 14) {
-                        // Connection status
                         HStack(spacing: 6) {
                             Circle()
                                 .fill(nostrService.isConnected ? SigilTheme.online : SigilTheme.danger)
@@ -31,38 +31,32 @@ struct ContentView: View {
                         }
 
                         Button { showAddContact = true } label: {
-                            Image(systemName: "plus.circle")
+                            Image(systemName: "person.badge.plus")
                                 .font(.title3)
                         }
-                        Button { showQRScanner = true } label: {
-                            Image(systemName: "qrcode.viewfinder")
-                                .font(.title3)
+
+                        NavigationLink(destination: MyProfileView()) {
+                            // User avatar or default
+                            if let data = nostrService.userAvatarData,
+                               let uiImage = UIImage(data: data) {
+                                Image(uiImage: uiImage)
+                                    .resizable()
+                                    .scaledToFill()
+                                    .frame(width: 28, height: 28)
+                                    .clipShape(Circle())
+                            } else {
+                                Image(systemName: "person.circle")
+                                    .font(.title3)
+                            }
                         }
                     }
                 }
+            }
+            .sheet(isPresented: $showAddContact) {
+                AddFriendView()
             }
             .sheet(isPresented: $showQRScanner) {
                 QRScannerView()
-            }
-            .alert("Add Agent", isPresented: $showAddContact) {
-                TextField("npub1...", text: $manualNpub)
-                Button("Add") {
-                    let npub = manualNpub.trimmingCharacters(in: .whitespacesAndNewlines)
-                    if !npub.isEmpty {
-                        nostrService.addAgent(AgentContact(npub: npub, name: "Agent", isAgent: true))
-                        manualNpub = ""
-                    }
-                }
-                Button("Echo Agent") {
-                    nostrService.addAgent(AgentContact(
-                        npub: "npub13yuvfydn8g825p2w8nrp3a9vuh3ymc5cftyt433hzr3xzj7ppxms7jc060",
-                        name: "Echo Agent",
-                        isAgent: true
-                    ))
-                }
-                Button("Cancel", role: .cancel) {}
-            } message: {
-                Text("Enter npub or add the echo agent for testing")
             }
             .task {
                 await nostrService.connect()
@@ -158,29 +152,25 @@ struct AgentRow: View {
         HStack(spacing: 14) {
             // Avatar
             ZStack {
-                Circle()
-                    .fill(
-                        agent.isAgent
-                            ? SigilTheme.agentAccent.opacity(0.15)
-                            : SigilTheme.accent.opacity(0.1)
-                    )
-                    .frame(width: 48, height: 48)
-
-                if agent.isAgent {
-                    Image(systemName: "cpu")
-                        .font(.system(size: 20))
-                        .foregroundStyle(SigilTheme.agentAccent)
+                #if canImport(UIKit)
+                if let data = agent.avatarData, let uiImage = UIImage(data: data) {
+                    Image(uiImage: uiImage)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 48, height: 48)
+                        .clipShape(Circle())
                 } else {
-                    Image(systemName: "person.fill")
-                        .font(.system(size: 20))
-                        .foregroundStyle(SigilTheme.accent)
+                    defaultAvatar
                 }
+                #else
+                defaultAvatar
+                #endif
             }
 
             // Name + last message
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 6) {
-                    Text(agent.name)
+                    Text(agent.displayName)
                         .font(.body)
                         .fontWeight(.semibold)
                         .foregroundStyle(SigilTheme.adaptiveText)
@@ -214,5 +204,27 @@ struct AgentRow: View {
             }
         }
         .padding(.vertical, 6)
+    }
+
+    private var defaultAvatar: some View {
+        ZStack {
+            Circle()
+                .fill(
+                    agent.isAgent
+                        ? SigilTheme.agentAccent.opacity(0.15)
+                        : SigilTheme.accent.opacity(0.1)
+                )
+                .frame(width: 48, height: 48)
+
+            if agent.isAgent {
+                Image(systemName: "cpu")
+                    .font(.system(size: 20))
+                    .foregroundStyle(SigilTheme.agentAccent)
+            } else {
+                Image(systemName: "person.fill")
+                    .font(.system(size: 20))
+                    .foregroundStyle(SigilTheme.accent)
+            }
+        }
     }
 }

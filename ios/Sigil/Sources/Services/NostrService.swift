@@ -10,6 +10,9 @@ class NostrService: ObservableObject {
     @Published var agents: [AgentContact] = []
     @Published var messages: [String: [ChatMessage]] = [:]
     @Published var isConnected = false
+    @Published var userDisplayName: String = "Sigil User"
+    @Published var userAbout: String?
+    @Published var userAvatarData: Data?
 
     private var client: Client?
     private var keys: Keys?
@@ -23,11 +26,44 @@ class NostrService: ObservableObject {
         loadFromStore()
     }
 
+    // MARK: - User Profile
+
+    func updateProfile(displayName: String, about: String?, avatarData: Data?) {
+        guard let context = modelContext else { return }
+
+        let descriptor = FetchDescriptor<UserProfile>()
+        let existing = try? context.fetch(descriptor)
+        let profile = existing?.first ?? UserProfile()
+
+        profile.displayName = displayName
+        profile.about = about
+        profile.avatarData = avatarData
+
+        if existing?.first == nil {
+            context.insert(profile)
+        }
+        try? context.save()
+
+        self.userDisplayName = displayName
+        self.userAbout = about
+        self.userAvatarData = avatarData
+    }
+
+    private func loadUserProfile() {
+        guard let context = modelContext else { return }
+        let descriptor = FetchDescriptor<UserProfile>()
+        if let profile = try? context.fetch(descriptor).first {
+            self.userDisplayName = profile.displayName.isEmpty ? "Sigil User" : profile.displayName
+            self.userAbout = profile.about
+            self.userAvatarData = profile.avatarData
+        }
+    }
+
     // MARK: - Persistence
 
     private func setupPersistence() {
         do {
-            let schema = Schema([AgentContact.self, ChatMessage.self])
+            let schema = Schema([UserProfile.self, AgentContact.self, ChatMessage.self])
             let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
             let container = try ModelContainer(for: schema, configurations: [config])
             self.modelContainer = container
@@ -39,6 +75,8 @@ class NostrService: ObservableObject {
 
     private func loadFromStore() {
         guard let context = modelContext else { return }
+
+        loadUserProfile()
 
         let agentDescriptor = FetchDescriptor<AgentContact>(sortBy: [SortDescriptor(\.addedAt)])
         if let stored = try? context.fetch(agentDescriptor) {

@@ -1,6 +1,29 @@
 import Foundation
 import SwiftData
 
+// MARK: - User Profile
+
+@Model
+class UserProfile {
+    @Attribute(.unique) var id: String // always "me"
+    var displayName: String
+    var about: String?
+    var avatarData: Data? // locally stored photo
+    var avatarUrl: String? // Nostr profile picture URL
+    var createdAt: Date
+
+    init() {
+        self.id = "me"
+        self.displayName = ""
+        self.about = nil
+        self.avatarData = nil
+        self.avatarUrl = nil
+        self.createdAt = Date()
+    }
+}
+
+// MARK: - Agent / Contact
+
 @Model
 class AgentContact {
     @Attribute(.unique) var npub: String
@@ -12,10 +35,16 @@ class AgentContact {
     // Profile
     var about: String?
     var avatarUrl: String?
+    var avatarData: Data? // locally assigned avatar for agents
     var capabilities: [String]?
     var framework: String?
 
+    // Agent-specific
+    var codename: String? // short codename like "D.Gloria"
+    var agentVersion: String?
+
     var addedAt: Date
+    var isFavorite: Bool
 
     init(npub: String, name: String, isAgent: Bool, relay: String? = nil) {
         self.npub = npub
@@ -23,6 +52,12 @@ class AgentContact {
         self.isAgent = isAgent
         self.relay = relay
         self.addedAt = Date()
+        self.isFavorite = false
+    }
+
+    /// Display name — codename first, then name
+    var displayName: String {
+        codename ?? name
     }
 
     /// Short display of npub
@@ -32,7 +67,18 @@ class AgentContact {
         }
         return npub
     }
+
+    /// Generate a sigil:// invite URI
+    var inviteUri: String {
+        let encodedRelay = (relay ?? "wss://relay.damus.io")
+            .replacingOccurrences(of: "://", with: "%3A%2F%2F")
+            .replacingOccurrences(of: "/", with: "%2F")
+        let encodedName = displayName.replacingOccurrences(of: " ", with: "%20")
+        return "sigil://agent?npub=\(npub)&relay=\(encodedRelay)&name=\(encodedName)"
+    }
 }
+
+// MARK: - Chat Message
 
 @Model
 class ChatMessage {
@@ -52,13 +98,11 @@ class ChatMessage {
         self.timestamp = timestamp
     }
 
-    /// Check if this is a TUI message (JSON with type field)
     var isTui: Bool {
         content.trimmingCharacters(in: .whitespaces).hasPrefix("{")
             && content.contains("\"type\"")
     }
 
-    /// Parse TUI message type
     var tuiType: String? {
         guard isTui,
               let data = content.data(using: .utf8),

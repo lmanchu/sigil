@@ -6,7 +6,7 @@ struct SigilApp: App {
     @StateObject private var nostrService = NostrService.shared
 
     var sharedModelContainer: ModelContainer = {
-        let schema = Schema([AgentContact.self, ChatMessage.self])
+        let schema = Schema([UserProfile.self, AgentContact.self, ChatMessage.self])
         let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
         do {
             return try ModelContainer(for: schema, configurations: [config])
