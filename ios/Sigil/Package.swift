@@ -13,7 +13,10 @@ let package = Package(
             dependencies: [
                 .product(name: "NostrSDK", package: "nostr-sdk-swift"),
             ],
-            path: "Sources"
+            path: "Sources",
+            resources: [
+                .process("../Resources/Assets.xcassets"),
+            ]
         ),
     ]
 )
