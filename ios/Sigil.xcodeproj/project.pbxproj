@@ -16,6 +16,8 @@
 		EEFF001122334455MYPROF01 /* MyProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EEFF001122334455MYPROF02 /* MyProfileView.swift */; };
 		EEFF001122334455ADDFR01 /* AddFriendView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EEFF001122334455ADDFR02 /* AddFriendView.swift */; };
 		EEFF001122334455QRCOD01 /* QRCodeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EEFF001122334455QRCOD02 /* QRCodeView.swift */; };
+		EEFF001122334455DLNK01 /* DeviceLinkView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EEFF001122334455DLNK02 /* DeviceLinkView.swift */; };
+		EEFF001122334455DLSV01 /* DeviceLinking.swift in Sources */ = {isa = PBXBuildFile; fileRef = EEFF001122334455DLSV02 /* DeviceLinking.swift */; };
 		CCDD001122334455ASSET01 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = CCDD001122334455ASSET02 /* Assets.xcassets */; };
 		DDD4051CF64C43AF9C726041 /* QRScannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D2251B6C5D440C2B76FC37C /* QRScannerView.swift */; };
 		A3F7B82E19D84C07B521DA43 /* AgentProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E6C41D3F0A24AB8926E1F05 /* AgentProfileView.swift */; };
@@ -33,6 +35,8 @@
 		EEFF001122334455MYPROF02 /* MyProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MyProfileView.swift; sourceTree = "<group>"; };
 		EEFF001122334455ADDFR02 /* AddFriendView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddFriendView.swift; sourceTree = "<group>"; };
 		EEFF001122334455QRCOD02 /* QRCodeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRCodeView.swift; sourceTree = "<group>"; };
+		EEFF001122334455DLNK02 /* DeviceLinkView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceLinkView.swift; sourceTree = "<group>"; };
+		EEFF001122334455DLSV02 /* DeviceLinking.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceLinking.swift; sourceTree = "<group>"; };
 		CCDD001122334455ASSET02 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Sigil/Resources/Assets.xcassets"; sourceTree = "<group>"; };
 		4D2251B6C5D440C2B76FC37C /* QRScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRScannerView.swift; sourceTree = "<group>"; };
 		7E6C41D3F0A24AB8926E1F05 /* AgentProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentProfileView.swift; sourceTree = "<group>"; };
@@ -95,6 +99,7 @@
 				EEFF001122334455MYPROF02 /* MyProfileView.swift */,
 				EEFF001122334455ADDFR02 /* AddFriendView.swift */,
 				EEFF001122334455QRCOD02 /* QRCodeView.swift */,
+				EEFF001122334455DLNK02 /* DeviceLinkView.swift */,
 				4D2251B6C5D440C2B76FC37C /* QRScannerView.swift */,
 				7E6C41D3F0A24AB8926E1F05 /* AgentProfileView.swift */,
 			);
@@ -105,6 +110,7 @@
 			isa = PBXGroup;
 			children = (
 				45ABA1AB766645EEADD229EF /* NostrService.swift */,
+				EEFF001122334455DLSV02 /* DeviceLinking.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -202,6 +208,8 @@
 				EEFF001122334455MYPROF01 /* MyProfileView.swift in Sources */,
 				EEFF001122334455ADDFR01 /* AddFriendView.swift in Sources */,
 				EEFF001122334455QRCOD01 /* QRCodeView.swift in Sources */,
+				EEFF001122334455DLNK01 /* DeviceLinkView.swift in Sources */,
+				EEFF001122334455DLSV01 /* DeviceLinking.swift in Sources */,
 				DDD4051CF64C43AF9C726041 /* QRScannerView.swift in Sources */,
 				A3F7B82E19D84C07B521DA43 /* AgentProfileView.swift in Sources */,
 			);

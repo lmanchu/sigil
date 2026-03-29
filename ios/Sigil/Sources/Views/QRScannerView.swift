@@ -9,6 +9,9 @@ struct QRScannerView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var scannedCode: String?
     @State private var showError = false
+    @State private var showDeviceLink = false
+    @State private var linkNpub = ""
+    @State private var linkRelay = ""
 
     var body: some View {
         NavigationStack {
@@ -47,12 +50,21 @@ struct QRScannerView: View {
             }
             .onChange(of: scannedCode) { _, code in
                 guard let code = code else { return }
-                if nostrService.addAgentFromQR(code) {
+                // Check if it's a device link QR
+                if let linkData = DeviceLinkSession.parseLinkUri(code) {
+                    linkNpub = linkData.npub
+                    linkRelay = linkData.relay
+                    showDeviceLink = true
+                    scannedCode = nil
+                } else if nostrService.addAgentFromQR(code) {
                     dismiss()
                 } else {
                     showError = true
                     scannedCode = nil
                 }
+            }
+            .sheet(isPresented: $showDeviceLink) {
+                DeviceLinkConfirmView(linkNpub: linkNpub, linkRelay: linkRelay)
             }
             .alert("Invalid QR Code", isPresented: $showError) {
                 Button("OK") {}

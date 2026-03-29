@@ -15,7 +15,7 @@ class NostrService: ObservableObject {
     @Published var userAvatarData: Data?
 
     private var client: Client?
-    private var keys: Keys?
+    private(set) var keys: Keys?
     private var signer: NostrSigner?
     private var modelContainer: ModelContainer?
     private var modelContext: ModelContext?

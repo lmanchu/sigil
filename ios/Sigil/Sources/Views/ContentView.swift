@@ -5,6 +5,7 @@ struct ContentView: View {
     @State private var showQRScanner = false
     @State private var showAddContact = false
     @State private var showMyProfile = false
+    @State private var showDeviceLink = false
     @State private var manualNpub = ""
 
     var body: some View {
@@ -35,6 +36,13 @@ struct ContentView: View {
                                 .font(.title3)
                         }
 
+                        #if targetEnvironment(macCatalyst) || os(macOS)
+                        Button { showDeviceLink = true } label: {
+                            Image(systemName: "link.badge.plus")
+                                .font(.title3)
+                        }
+                        #endif
+
                         NavigationLink(destination: MyProfileView()) {
                             // User avatar or default
                             if let data = nostrService.userAvatarData,
@@ -54,6 +62,9 @@ struct ContentView: View {
             }
             .sheet(isPresented: $showAddContact) {
                 AddFriendView()
+            }
+            .sheet(isPresented: $showDeviceLink) {
+                DeviceLinkQRView()
             }
             .sheet(isPresented: $showQRScanner) {
                 QRScannerView()
