@@ -209,7 +209,7 @@ struct AgentProfileView: View {
                                 }
 
                                 Button {
-                                    showFilePicker = true
+                                    pickFileFromFinder()
                                 } label: {
                                     Label("Files", systemImage: "folder")
                                         .font(.subheadline)
@@ -229,20 +229,6 @@ struct AgentProfileView: View {
                     Section("About") {
                         TextField("Description", text: $editAbout, axis: .vertical)
                             .lineLimit(3...6)
-                    }
-                }
-                .fileImporter(
-                    isPresented: $showFilePicker,
-                    allowedContentTypes: [.image],
-                    allowsMultipleSelection: false
-                ) { result in
-                    if case .success(let urls) = result, let url = urls.first {
-                        if url.startAccessingSecurityScopedResource() {
-                            defer { url.stopAccessingSecurityScopedResource() }
-                            if let data = try? Data(contentsOf: url) {
-                                agent.avatarData = data
-                            }
-                        }
                     }
                 }
                 .navigationTitle("Edit Profile")
@@ -268,6 +254,32 @@ struct AgentProfileView: View {
         }
     }
 
+    private func pickFileFromFinder() {
+        #if canImport(UIKit)
+        let picker = UIDocumentPickerViewController(forOpeningContentTypes: [.image])
+        picker.allowsMultipleSelection = false
+        picker.delegate = FilePickerDelegate.shared
+        FilePickerDelegate.shared.onPick = { url in
+            if url.startAccessingSecurityScopedResource() {
+                defer { url.stopAccessingSecurityScopedResource() }
+                if let data = try? Data(contentsOf: url) {
+                    agent.avatarData = data
+                    nostrService.saveContact(agent)
+                }
+            }
+        }
+        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+           let root = windowScene.windows.first?.rootViewController {
+            // Find the topmost presented controller
+            var topVC = root
+            while let presented = topVC.presentedViewController {
+                topVC = presented
+            }
+            topVC.present(picker, animated: true)
+        }
+        #endif
+    }
+
     private var defaultAvatarLarge: some View {
         ZStack {
             Circle()
@@ -283,6 +295,21 @@ struct AgentProfileView: View {
         }
     }
 }
+
+// MARK: - File Picker Delegate
+
+#if canImport(UIKit)
+class FilePickerDelegate: NSObject, UIDocumentPickerDelegate {
+    static let shared = FilePickerDelegate()
+    var onPick: ((URL) -> Void)?
+
+    func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
+        if let url = urls.first {
+            onPick?(url)
+        }
+    }
+}
+#endif
 
 // MARK: - Profile Row
 
