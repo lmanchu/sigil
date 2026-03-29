@@ -56,7 +56,7 @@ pub async fn publish_agent(
 
     // NIP-AE tag structure
     let mut tags = vec![
-        Tag::identifier(&entry.name.to_lowercase().replace(' ', "-")),
+        Tag::identifier(entry.name.to_lowercase().replace(' ', "-")),
         Tag::custom(TagKind::custom("title"), vec![entry.name.clone()]),
         Tag::hashtag("agent"),
     ];
@@ -127,7 +127,7 @@ pub async fn search_agents(
     for event in events.iter() {
         if event.kind == Kind::Custom(AGENT_DEFINITION_KIND) {
             // Parse NIP-AE format (tags-based)
-            if let Some(entry) = parse_nip_ae_event(&event) {
+            if let Some(entry) = parse_nip_ae_event(event) {
                 agents.push((event.pubkey, entry));
             }
         } else {

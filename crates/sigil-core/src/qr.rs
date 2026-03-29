@@ -33,9 +33,7 @@ impl AgentQrData {
         let mut name = None;
 
         for pair in uri.split('&') {
-            let mut parts = pair.splitn(2, '=');
-            let key = parts.next()?;
-            let value = parts.next()?;
+            let (key, value) = pair.split_once('=')?;
             match key {
                 "npub" => npub = Some(value.to_string()),
                 "relay" => relay = Some(urldecoding(value)),

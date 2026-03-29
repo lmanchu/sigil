@@ -721,7 +721,7 @@ async fn run_tui(relay: Option<String>) -> Result<(), Box<dyn std::error::Error>
 
 fn handle_command(cmd: &str, app: &mut App) {
     let parts: Vec<&str> = cmd.trim().splitn(3, ' ').collect();
-    match parts.first().map(|s| *s) {
+    match parts.first().copied() {
         Some("/add") => {
             if parts.len() >= 2 {
                 let address = parts[1];

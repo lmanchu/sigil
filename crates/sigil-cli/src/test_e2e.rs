@@ -83,29 +83,26 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         tokio::select! {
             result = notifications.recv() => {
-                match result {
-                    Ok(RelayPoolNotification::Event { event, .. }) => {
-                        if event.kind == Kind::EncryptedDirectMessage && event.pubkey == target_pk {
-                            if let Ok(content) = nip04::decrypt(keys.secret_key(), &target_pk, &event.content) {
-                                replies += 1;
-                                let label = if content.contains("\"type\"") {
-                                    "TUI"
-                                } else if content.contains("Echo:") {
-                                    "ECHO"
-                                } else {
-                                    "RESP"
-                                };
-                                let short = if content.chars().count() > 80 {
-                                    let s: String = content.chars().take(80).collect();
-                                    format!("{}...", s)
-                                } else {
-                                    content.clone()
-                                };
-                                println!("  ✅ Reply #{} [{}]: {}", replies, label, short);
-                            }
+                if let Ok(RelayPoolNotification::Event { event, .. }) = result {
+                    if event.kind == Kind::EncryptedDirectMessage && event.pubkey == target_pk {
+                        if let Ok(content) = nip04::decrypt(keys.secret_key(), &target_pk, &event.content) {
+                            replies += 1;
+                            let label = if content.contains("\"type\"") {
+                                "TUI"
+                            } else if content.contains("Echo:") {
+                                "ECHO"
+                            } else {
+                                "RESP"
+                            };
+                            let short = if content.chars().count() > 80 {
+                                let s: String = content.chars().take(80).collect();
+                                format!("{}...", s)
+                            } else {
+                                content.clone()
+                            };
+                            println!("  ✅ Reply #{} [{}]: {}", replies, label, short);
                         }
                     }
-                    _ => {}
                 }
             }
             _ = tokio::time::sleep(remaining) => {
